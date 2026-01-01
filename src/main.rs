@@ -9,6 +9,7 @@ use macroquad::prelude::*;
 const CELL_SIZE: f32 = 60f32;
 const BORDER_SIZE: f32 = 30f32;
 
+use crate::domain::ColorPiece::White;
 use crate::domain::{Board, Case};
 
 mod domain;
@@ -71,7 +72,7 @@ fn create_pieces(plateau: &Board) {
             if let Some(case2) = plateau.cell(i, j) {
                 match case2 {
                     Case::Empty => {}
-                    Case::White => {
+                    Case::Piece(color) => {
                         // draw_texture(
                         //     &white_piece,
                         //     BORDER_SIZE + i as f32 * CELL_SIZE + CELL_SIZE / 2f32,
@@ -83,23 +84,8 @@ fn create_pieces(plateau: &Board) {
                             BORDER_SIZE + i as f32 * CELL_SIZE + CELL_SIZE / 2f32,
                             BORDER_SIZE + j as f32 * CELL_SIZE + CELL_SIZE / 2f32,
                             20f32,
-                            true,
+                            *color == White,
                         )
-                    }
-                    Case::Black => {
-                        draw_piece(
-                            BORDER_SIZE + i as f32 * CELL_SIZE + CELL_SIZE / 2f32,
-                            BORDER_SIZE + j as f32 * CELL_SIZE + CELL_SIZE / 2f32,
-                            20f32,
-                            false,
-                        );
-
-                        // draw_circle(
-                        //     BORDER_SIZE + i as f32 * CELL_SIZE + CELL_SIZE / 2f32,
-                        //     BORDER_SIZE + j as f32 * CELL_SIZE + CELL_SIZE / 2f32,
-                        //     20f32,
-                        //     BLACK,
-                        // )
                     }
                 }
             }

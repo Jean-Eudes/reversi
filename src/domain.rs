@@ -1,13 +1,18 @@
-use crate::domain::Case::{Black, Empty, White};
+use crate::domain::Case::{Empty, Piece};
+use crate::domain::ColorPiece::{Black, White};
 
-#[derive(Copy, Clone, PartialEq, Debug)]
+#[derive(Copy, Clone, PartialEq)]
 pub enum Case {
     Empty,
+    Piece(ColorPiece),
+}
+
+#[derive(Copy, Clone, PartialEq)]
+pub enum ColorPiece {
     White,
     Black,
 }
 
-#[derive(Debug)]
 enum Player {
     Player1,
     Player2,
@@ -21,10 +26,10 @@ pub struct Board {
 impl Board {
     pub fn new() -> Board {
         let mut array = [Empty; 64];
-        array[27] = Black;
-        array[28] = White;
-        array[35] = White;
-        array[36] = Black;
+        array[27] = Piece(Black);
+        array[28] = Piece(White);
+        array[35] = Piece(White);
+        array[36] = Piece(Black);
         Board {
             array,
             current_player: Player::Player1,
@@ -39,7 +44,7 @@ impl Board {
                 {
                     let x1 = self.reverse_piece(x, y);
                     if x1 {
-                        self.array[x * 8 + y] = White;
+                        self.array[x * 8 + y] = Piece(White);
                     }
                 }
                 self.current_player = Player::Player2;
@@ -50,7 +55,7 @@ impl Board {
                 {
                     let x2 = self.reverse_piece(x, y);
                     if x2 {
-                        self.array[x * 8 + y] = Black;
+                        self.array[x * 8 + y] = Piece(Black);
                     }
                 }
                 self.current_player = Player::Player1;
@@ -89,8 +94,8 @@ impl Board {
         y: usize,
         i: isize,
         j: isize,
-        color_opposite_player: Case,
-        color_player: Case,
+        color_opposite_player: ColorPiece,
+        color_player: ColorPiece,
     ) -> bool {
         let mut must_return_piece = false;
 
@@ -99,7 +104,8 @@ impl Board {
         {
             let mut pieces = vec![];
             if let Some(&cell) = self.cell(nx, ny)
-                && cell == color_opposite_player
+                && let Piece(color) = cell
+                && color == color_opposite_player
             {
                 pieces.push((nx, ny));
                 for k in 2..=8 {
@@ -110,9 +116,13 @@ impl Board {
                         if cell.filter(|&&c| c == Empty).is_some() {
                             continue;
                         }
-                        if cell.filter(|&&c| c == color_player).is_some() {
+                        if let Some(case) = cell
+                            && let Piece(color) = case
+                            && color == &color_player
+                        {
+                            //cell.filter(|&&c| c == color_player).is_some() {
                             pieces.iter().for_each(|(a, b)| {
-                                self.array[a * 8 + b] = color_player;
+                                self.array[a * 8 + b] = Piece(color_player);
                             });
                             must_return_piece |= true;
                             continue;
