@@ -1,6 +1,6 @@
 use macroquad::{
     color::{BLACK, GREEN, WHITE},
-    input::{MouseButton, is_mouse_button_pressed, mouse_position},
+    input::{is_mouse_button_pressed, mouse_position, MouseButton},
     shapes::{draw_circle, draw_line},
     window::{clear_background, next_frame},
 };
@@ -13,68 +13,32 @@ use crate::domain::{Board, Case};
 
 mod domain;
 
-#[macroquad::main("Reversi")]
+fn window_conf() -> Conf {
+    Conf {
+        window_title: "Reversi".to_owned(),
+        sample_count: 4,
+        ..Default::default()
+    }
+}
+
+#[macroquad::main(window_conf)]
 async fn main() {
-    println!("Hello, world!");
-
     let mut plateau = Board::new();
-    println!("{}", plateau);
-    let white_piece = generate_piece_sprite(40.0, true).await;
-    let black_piece = generate_piece_sprite(40.0, false).await;
+    let _white_piece = generate_piece_sprite(40.0, true).await;
+    let _black_piece = generate_piece_sprite(40.0, false).await;
     loop {
-        clear_background(GREEN);
-        create_board();
-        for i in 0..8 {
-            for j in 0..8 {
-                if let Some(case2) = plateau.cell(i, j) {
-                    match case2 {
-                        Case::Empty => {}
-                        Case::White => {
-                            // draw_texture(
-                            //     &white_piece,
-                            //     BORDER_SIZE + i as f32 * CELL_SIZE + CELL_SIZE / 2f32,
-                            //     BORDER_SIZE + j as f32 * CELL_SIZE + CELL_SIZE / 2f32,
-                            //     WHITE,
-                            // );
-
-                            draw_piece(
-                                BORDER_SIZE + i as f32 * CELL_SIZE + CELL_SIZE / 2f32,
-                                BORDER_SIZE + j as f32 * CELL_SIZE + CELL_SIZE / 2f32,
-                                20f32,
-                                true,
-                            )
-                        }
-                        Case::Black => {
-                            draw_piece(
-                                BORDER_SIZE + i as f32 * CELL_SIZE + CELL_SIZE / 2f32,
-                                BORDER_SIZE + j as f32 * CELL_SIZE + CELL_SIZE / 2f32,
-                                20f32,
-                                false,
-                            );
-
-                            // draw_circle(
-                            //     BORDER_SIZE + i as f32 * CELL_SIZE + CELL_SIZE / 2f32,
-                            //     BORDER_SIZE + j as f32 * CELL_SIZE + CELL_SIZE / 2f32,
-                            //     20f32,
-                            //     BLACK,
-                            // )
-                        }
-                    }
-                }
-            }
+        if !plateau.end_of_game() {
+            clear_background(GREEN);
+            create_board();
+            create_pieces(&plateau);
         }
 
         if is_mouse_button_pressed(MouseButton::Left) {
             let (mouse_x, mouse_y) = mouse_position();
 
-            println!("{mouse_x}, {mouse_y}");
-
             let x = ((mouse_x - BORDER_SIZE) / CELL_SIZE).floor() as usize;
             let y = ((mouse_y - BORDER_SIZE) / CELL_SIZE).floor() as usize;
-            println!("case is {x}, {y}");
-            if plateau.available(x, y) {
-                plateau.place(x, y);
-            }
+            plateau.place(x, y);
         }
 
         next_frame().await
@@ -98,6 +62,48 @@ fn create_board() {
             3.0,
             BLACK,
         );
+    }
+}
+
+fn create_pieces(plateau: &Board) {
+    for i in 0..8 {
+        for j in 0..8 {
+            if let Some(case2) = plateau.cell(i, j) {
+                match case2 {
+                    Case::Empty => {}
+                    Case::White => {
+                        // draw_texture(
+                        //     &white_piece,
+                        //     BORDER_SIZE + i as f32 * CELL_SIZE + CELL_SIZE / 2f32,
+                        //     BORDER_SIZE + j as f32 * CELL_SIZE + CELL_SIZE / 2f32,
+                        //     WHITE,
+                        // );
+
+                        draw_piece(
+                            BORDER_SIZE + i as f32 * CELL_SIZE + CELL_SIZE / 2f32,
+                            BORDER_SIZE + j as f32 * CELL_SIZE + CELL_SIZE / 2f32,
+                            20f32,
+                            true,
+                        )
+                    }
+                    Case::Black => {
+                        draw_piece(
+                            BORDER_SIZE + i as f32 * CELL_SIZE + CELL_SIZE / 2f32,
+                            BORDER_SIZE + j as f32 * CELL_SIZE + CELL_SIZE / 2f32,
+                            20f32,
+                            false,
+                        );
+
+                        // draw_circle(
+                        //     BORDER_SIZE + i as f32 * CELL_SIZE + CELL_SIZE / 2f32,
+                        //     BORDER_SIZE + j as f32 * CELL_SIZE + CELL_SIZE / 2f32,
+                        //     20f32,
+                        //     BLACK,
+                        // )
+                    }
+                }
+            }
+        }
     }
 }
 

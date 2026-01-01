@@ -1,5 +1,3 @@
-use std::fmt::{Display, Formatter};
-
 use crate::domain::Case::{Black, Empty, White};
 
 #[derive(Copy, Clone, PartialEq, Debug)]
@@ -11,8 +9,8 @@ pub enum Case {
 
 #[derive(Debug)]
 enum Player {
-    White,
-    Black,
+    Player1,
+    Player2,
 }
 
 pub struct Board {
@@ -29,115 +27,114 @@ impl Board {
         array[36] = Black;
         Board {
             array,
-            current_player: Player::White,
+            current_player: Player::Player1,
         }
     }
 
     pub fn place(&mut self, x: usize, y: usize) {
         match self.current_player {
-            Player::White => {
+            Player::Player1 => {
                 if let Some(&case) = self.cell(x, y)
                     && case == Empty
                 {
-                    self.array[x * 8 + y] = White;
+                    let x1 = self.reverse_piece(x, y);
+                    if x1 {
+                        self.array[x * 8 + y] = White;
+                    }
                 }
-                self.current_player = Player::Black;
+                self.current_player = Player::Player2;
             }
-            Player::Black => {
+            Player::Player2 => {
                 if let Some(&case) = self.cell(x, y)
                     && case == Empty
                 {
-                    self.array[x * 8 + y] = Black;
+                    let x2 = self.reverse_piece(x, y);
+                    if x2 {
+                        self.array[x * 8 + y] = Black;
+                    }
                 }
-                self.current_player = Player::White;
+                self.current_player = Player::Player1;
             }
         }
     }
-
-    pub fn available(&self, x: usize, y: usize) -> bool {
+    pub fn reverse_piece(&mut self, x: usize, y: usize) -> bool {
         if let Some(&cell) = self.cell(x, y)
             && cell != Empty
         {
-            return true;
+            return false;
         }
 
-        // Todo : voirpour utilisier un iterateur par la suite pour mutualiser avec le retournement de pieces.
+        let mut must_return_piece = false;
+
+        // Todo : voir pour utiliser un iterateur par la suite pour mutualiser avec le retournement de pieces.
         for i in -1..=1 {
             for j in -1..=1 {
-                if let (Some(nx), Some(ny)) = (x.checked_add_signed(i), y.checked_add_signed(j))
-                    && !(i == 0 && j == 0)
-                {
-                    match self.current_player {
-                        Player::White => {
-                            if let Some(&cell) = self.cell(nx, ny)
-                                && cell == Black
-                            {
-                                for k in 2..=8 {
-                                    if let (Some(nx), Some(ny)) =
-                                        (x.checked_add_signed(k * i), y.checked_add_signed(k * j))
-                                    {
-                                        let cell = self.cell(nx, ny);
-                                        if cell.filter(|&&c| c == White).is_some() {
-                                            return true;
-                                        }
-                                    }
-                                }
-                            }
-                        }
-                        Player::Black => {
-                            if let Some(&cell) = self.cell(nx, ny)
-                                && cell == White
-                            {
-                                for k in 2..=8 {
-                                    if let (Some(nx), Some(ny)) =
-                                        (x.checked_add_signed(k * i), y.checked_add_signed(k * j))
-                                    {
-                                        let cell = self.cell(nx, ny);
-                                        if cell.filter(|&&c| c == Black).is_some() {
-                                            return true;
-                                        }
-                                    }
-                                }
-                            }
-                        }
+                match self.current_player {
+                    Player::Player1 => {
+                        must_return_piece |= self.reverse_line(x, y, i, j, Black, White);
+                    }
+                    Player::Player2 => {
+                        must_return_piece |= self.reverse_line(x, y, i, j, White, Black);
                     }
                 }
-                println!("{i} {j}");
             }
         }
 
-        false
+        must_return_piece
+    }
+
+    fn reverse_line(
+        &mut self,
+        x: usize,
+        y: usize,
+        i: isize,
+        j: isize,
+        color_opposite_player: Case,
+        color_player: Case,
+    ) -> bool {
+        let mut must_return_piece = false;
+
+        if let (Some(nx), Some(ny)) = (x.checked_add_signed(i), y.checked_add_signed(j))
+            && !(i == 0 && j == 0)
+        {
+            let mut pieces = vec![];
+            if let Some(&cell) = self.cell(nx, ny)
+                && cell == color_opposite_player
+            {
+                pieces.push((nx, ny));
+                for k in 2..=8 {
+                    if let (Some(nx), Some(ny)) =
+                        (x.checked_add_signed(k * i), y.checked_add_signed(k * j))
+                    {
+                        let cell = self.cell(nx, ny);
+                        if cell.filter(|&&c| c == Empty).is_some() {
+                            continue;
+                        }
+                        if cell.filter(|&&c| c == color_player).is_some() {
+                            pieces.iter().for_each(|(a, b)| {
+                                self.array[a * 8 + b] = color_player;
+                            });
+                            must_return_piece |= true;
+                            continue;
+                        } else {
+                            pieces.push((nx, ny));
+                        }
+                    }
+                }
+            }
+        }
+        must_return_piece
     }
 
     pub fn cell(&self, i: usize, j: usize) -> Option<&Case> {
+        if i > 7 || j > 7 {
+            return None;
+        }
         self.array.get(i * 8 + j)
     }
 
     pub fn end_of_game(&self) -> bool {
         false
-    }
-}
-
-impl Case {
-    fn to_char(&self) -> char {
-        match self {
-            Empty => ' ',
-            White => 'W',
-            Black => 'B',
-        }
-    }
-}
-
-impl Display for Board {
-    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
-        let mut display = String::from("");
-        for i in 0..8 {
-            for j in 0..8 {
-                display.push(self.array[8 * i + j].to_char())
-            }
-            display.push('\n')
-        }
-        write!(f, "{}", display)
     }
 }
 
@@ -156,30 +153,6 @@ mod tests {
 
         // Then
         assert_eq!(result, false);
-    }
-
-    #[test]
-    fn should_test_if_a_case_is_occupied() {
-        // Given
-        let board = Board::new();
-
-        // When
-        let result = board.available(2, 2);
-
-        // Then
-        assert_eq!(result, false);
-    }
-
-    #[test]
-    fn should_test_if_a_case_is_free() {
-        // Given
-        let board = Board::new();
-
-        // When
-        let result = board.available(3, 3);
-
-        // Then
-        assert_eq!(result, true);
     }
 
     #[test]
