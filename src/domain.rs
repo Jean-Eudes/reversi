@@ -13,7 +13,8 @@ pub enum ColorPiece {
     Black,
 }
 
-enum PlayerId {
+#[derive(PartialEq)]
+pub enum PlayerId {
     Player1,
     Player2,
 }
@@ -63,7 +64,7 @@ impl Player {
 
 pub struct Board {
     array: [Case; 64],
-    current_player: PlayerId,
+    pub current_player: PlayerId,
     player1: Player,
     player2: Player,
 }
@@ -113,75 +114,58 @@ impl Board {
             return false;
         }
 
-        let mut must_return_piece = false;
+        let player = self.current_player().0;
+        let opponent = self.current_player().opponent_player_color();
+        let mut flipped_any = false;
 
         // Todo : voir pour utiliser un iterateur par la suite pour mutualiser avec le retournement de pieces.
         for i in -1..=1 {
             for j in -1..=1 {
-                let color_player = self.current_player().0;
-                let pieces = self.scan_flips_in_direction(
-                    x,
-                    y,
-                    i,
-                    j,
-                    self.current_player().opponent_player_color(),
-                    self.current_player().0,
-                );
+                let pieces = self.scan_flips_in_direction(x, y, i, j, opponent, player);
                 if let Some(pieces) = pieces {
-                    must_return_piece |= !pieces.is_empty();
+                    flipped_any = true;
                     for piece in pieces {
-                        self.array[piece.0 * 8 + piece.1] = Piece(color_player);
+                        self.array[piece.0 * 8 + piece.1] = Piece(player);
                     }
                 }
             }
         }
 
-        must_return_piece
+        flipped_any
     }
 
     fn scan_flips_in_direction(
         &self,
         x: usize,
         y: usize,
-        i: isize,
-        j: isize,
-        color_opposite_player: ColorPiece,
-        color_player: ColorPiece,
+        dx: isize,
+        dy: isize,
+        opponent: ColorPiece,
+        player: ColorPiece,
     ) -> Option<Vec<(usize, usize)>> {
-        let mut all_pieces = Vec::new();
-
-        if let (Some(nx), Some(ny)) = (x.checked_add_signed(i), y.checked_add_signed(j))
-            && !(i == 0 && j == 0)
-        {
-            let mut pieces = vec![];
-            if let Some(&first_case) = self.cell(nx, ny)
-                && let Piece(color) = first_case
-                && color == color_opposite_player
-            {
-                pieces.push((nx, ny));
-                for k in 2..=8 {
-                    if let (Some(nx), Some(ny)) =
-                        (x.checked_add_signed(k * i), y.checked_add_signed(k * j))
-                        && let Some(following_case) = self.cell(nx, ny)
-                    {
-                        match following_case {
-                            Empty => break,
-                            Piece(color) if color == &color_player => {
-                                all_pieces.append(&mut pieces);
-                                break;
-                            }
-                            Piece(_color) => {
-                                pieces.push((nx, ny));
-                            }
-                        }
-                    }
-                }
-            }
+        if dx == 0 && dy == 0 {
+            return None;
         }
-        if !all_pieces.is_empty() {
-            Option::from(all_pieces)
-        } else {
-            None
+
+        let mut flips = Vec::new();
+
+        let mut nx = x.checked_add_signed(dx)?;
+        let mut ny = y.checked_add_signed(dy)?;
+
+        match self.cell(nx, ny)? {
+            Piece(color) if color == &opponent => flips.push((nx, ny)),
+            _ => return None,
+        }
+
+        loop {
+            nx = nx.checked_add_signed(dx)?;
+            ny = ny.checked_add_signed(dy)?;
+
+            match self.cell(nx, ny)? {
+                Empty => return None,
+                Piece(color) if color == &player => return Some(flips),
+                Piece(_color) => flips.push((nx, ny)),
+            }
         }
     }
 

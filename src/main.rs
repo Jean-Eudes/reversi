@@ -11,6 +11,7 @@ const BORDER_SIZE: f32 = 30f32;
 
 use crate::domain::ColorPiece::White;
 use crate::domain::{Board, Case};
+use crate::domain::PlayerId::{Player1, Player2};
 
 mod domain;
 
@@ -41,16 +42,21 @@ async fn main() {
                     10f32,
                 );
             }
+
+            if plateau.current_player == Player1 && is_mouse_button_pressed(MouseButton::Left) {
+                let (mouse_x, mouse_y) = mouse_position();
+
+                let x = ((mouse_x - BORDER_SIZE) / CELL_SIZE).floor() as usize;
+                let y = ((mouse_y - BORDER_SIZE) / CELL_SIZE).floor() as usize;
+                plateau.place(x, y);
+            } else if plateau.current_player == Player2 {
+                let vec = plateau.current_player().available_positions(&plateau);
+                let num = rand::gen_range(0, vec.len());
+                plateau.place(vec[num].0, vec[num].1);
+            }
+
         } else {
             victory_fireworks().await;
-        }
-
-        if is_mouse_button_pressed(MouseButton::Left) {
-            let (mouse_x, mouse_y) = mouse_position();
-
-            let x = ((mouse_x - BORDER_SIZE) / CELL_SIZE).floor() as usize;
-            let y = ((mouse_y - BORDER_SIZE) / CELL_SIZE).floor() as usize;
-            plateau.place(x, y);
         }
 
         next_frame().await
