@@ -21,6 +21,40 @@ pub enum PlayerId {
 
 pub struct Player(ColorPiece);
 
+struct Directions {
+    idx: usize,
+}
+
+impl Directions {
+    pub fn new() -> Directions {
+        Directions { idx: 0 }
+    }
+}
+
+impl Iterator for Directions {
+    type Item = (isize, isize);
+
+    fn next(&mut self) -> Option<Self::Item> {
+        const DIRS: [(isize, isize); 8] = [
+            (-1, -1),
+            (-1, 0),
+            (-1, 1),
+            (0, -1),
+            (0, 1),
+            (1, -1),
+            (1, 0),
+            (1, 1),
+        ];
+        if self.idx < DIRS.len() {
+            let dir = DIRS[self.idx];
+            self.idx += 1;
+            Some(dir)
+        } else {
+            None
+        }
+    }
+}
+
 impl Player {
     pub fn available_positions(&self, board: &Board) -> Vec<(usize, usize)> {
         let mut available_positions = Vec::new();
@@ -30,20 +64,18 @@ impl Player {
                 if board.cell(x, y) != Some(&Empty) {
                     continue;
                 }
-
-                for i in -1..=1 {
-                    for j in -1..=1 {
-                        let pieces = board.scan_flips_in_direction(
-                            x,
-                            y,
-                            i,
-                            j,
-                            self.opponent_player_color(),
-                            self.0,
-                        );
-                        if pieces.is_some() {
-                            available_positions.push((x, y));
-                        }
+                let directions = Directions::new();
+                for (dx, dy) in directions {
+                    let pieces = board.scan_flips_in_direction(
+                        x,
+                        y,
+                        dx,
+                        dy,
+                        self.opponent_player_color(),
+                        self.0,
+                    );
+                    if pieces.is_some() {
+                        available_positions.push((x, y));
                     }
                 }
             }
@@ -116,15 +148,13 @@ impl Board {
         let opponent = self.current_player().opponent_player_color();
         let mut flipped_any = false;
 
-        // Todo : voir pour utiliser un iterateur par la suite pour mutualiser avec le retournement de pieces.
-        for i in -1..=1 {
-            for j in -1..=1 {
-                let pieces = self.scan_flips_in_direction(x, y, i, j, opponent, player);
-                if let Some(pieces) = pieces {
-                    flipped_any = true;
-                    for piece in pieces {
-                        self.array[piece.0 * 8 + piece.1] = Piece(player);
-                    }
+        let directions = Directions::new();
+        for (dx, dy) in directions {
+            let pieces = self.scan_flips_in_direction(x, y, dx, dy, opponent, player);
+            if let Some(pieces) = pieces {
+                flipped_any = true;
+                for piece in pieces {
+                    self.array[piece.0 * 8 + piece.1] = Piece(player);
                 }
             }
         }
