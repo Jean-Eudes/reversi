@@ -1,6 +1,6 @@
 use macroquad::{
     color::{BLACK, GREEN, WHITE},
-    input::{is_mouse_button_pressed, mouse_position, MouseButton},
+    input::{MouseButton, is_mouse_button_pressed, mouse_position},
     shapes::{draw_circle, draw_line},
     window::{clear_background, next_frame},
 };
@@ -29,9 +29,20 @@ async fn main() {
     let _black_piece = generate_piece_sprite(40.0, false).await;
     loop {
         if !plateau.end_of_game() {
+
             clear_background(GREEN);
             create_board();
             create_pieces(&plateau);
+            let positions = plateau.current_player().available_positions(&plateau);
+            for position in positions {
+                draw_hint(
+                    BORDER_SIZE + position.0 as f32 * CELL_SIZE + CELL_SIZE / 2f32,
+                    BORDER_SIZE + position.1 as f32 * CELL_SIZE + CELL_SIZE / 2f32,
+                    10f32,
+                );
+            }
+        } else {
+            victory_fireworks().await;
         }
 
         if is_mouse_button_pressed(MouseButton::Left) {
@@ -123,6 +134,16 @@ pub fn draw_piece(x: f32, y: f32, radius: f32, is_white: bool) {
     );
 }
 
+pub fn draw_hint(x: f32, y: f32, radius: f32) {
+    draw_circle_lines(
+        x,
+        y,
+        radius * 0.8,
+        3.0,
+        Color::new(0.2, 0.8, 0.2, 0.6), // vert translucide
+    );
+}
+
 pub async fn generate_piece_sprite(radius: f32, is_white: bool) -> Texture2D {
     let size = (radius * 2.0) as u32;
 
@@ -189,4 +210,95 @@ pub async fn generate_piece_sprite(radius: f32, is_white: bool) -> Texture2D {
     set_default_camera();
 
     rt.texture
+}
+struct Particle {
+    pos: Vec2,
+    vel: Vec2,
+    color: Color,
+    life: f32,
+}
+
+impl Particle {
+    fn update(&mut self, dt: f32) {
+        self.pos += self.vel * dt;
+        self.vel *= 0.98; // friction légère
+        self.life -= dt;
+    }
+
+    fn draw(&self) {
+        let alpha = self.life.clamp(0.0, 1.0);
+        let mut c = self.color;
+        c.a = alpha;
+        draw_circle(self.pos.x, self.pos.y, 3.0, c);
+    }
+}
+
+fn spawn_firework(particles: &mut Vec<Particle>) {
+    let center = vec2(
+        rand::gen_range(100.0, screen_width() - 100.0),
+        rand::gen_range(100.0, screen_height() - 200.0),
+    );
+
+    let base_color = Color::new(
+        rand::gen_range(0.5, 1.0),
+        rand::gen_range(0.5, 1.0),
+        rand::gen_range(0.5, 1.0),
+        1.0,
+    );
+
+    for _ in 0..40 {
+        let angle = rand::gen_range(0.0, std::f32::consts::TAU);
+        let speed = rand::gen_range(80.0, 200.0);
+
+        particles.push(Particle {
+            pos: center,
+            vel: vec2(angle.cos() * speed, angle.sin() * speed),
+            color: base_color,
+            life: rand::gen_range(0.8, 1.5),
+        });
+    }
+}
+
+pub async fn victory_fireworks() {
+    let mut particles = Vec::new();
+    let mut timer = 0.0;
+    let mut spawn_timer = 0.0;
+
+    loop {
+        let dt = get_frame_time();
+        timer += dt;
+        spawn_timer += dt;
+
+        // Arrêter après 15 secondes
+        if timer > 15.0 {
+            break;
+        }
+
+        // Nouvelle explosion toutes les 0.7 secondes
+        if spawn_timer > 0.7 {
+            spawn_firework(&mut particles);
+            spawn_timer = 0.0;
+        }
+
+        // Mise à jour des particules
+        particles.iter_mut().for_each(|p| p.update(dt));
+        particles.retain(|p| p.life > 0.0);
+
+        // Dessin
+        clear_background(BLACK);
+
+        for p in &particles {
+            p.draw();
+        }
+
+        draw_text(
+            "Victoire !",
+            screen_width() / 2.0 - 120.0,
+            80.0,
+            60.0,
+            WHITE,
+        );
+
+        next_frame().await;
+    }
 }

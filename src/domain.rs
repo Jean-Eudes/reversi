@@ -13,14 +13,59 @@ pub enum ColorPiece {
     Black,
 }
 
-enum Player {
+enum PlayerId {
     Player1,
     Player2,
 }
 
+pub struct Player(ColorPiece);
+
+impl Player {
+    pub fn available_positions(&self, board: &Board) -> Vec<(usize, usize)> {
+        let mut available_positions = Vec::new();
+
+        for x in 0..8 {
+            for y in 0..8 {
+                if let Some(&cell) = board.cell(x, y)
+                    && cell != Empty
+                {
+                    continue;
+                }
+
+                for i in -1..=1 {
+                    for j in -1..=1 {
+                        let pieces = board.scan_flips_in_direction(
+                            x,
+                            y,
+                            i,
+                            j,
+                            self.opponent_player_color(),
+                            self.0,
+                        );
+                        if pieces.is_some() {
+                            available_positions.push((x, y));
+                        }
+                    }
+                }
+            }
+        }
+
+        available_positions
+    }
+
+    fn opponent_player_color(&self) -> ColorPiece {
+        match self.0 {
+            White => Black,
+            Black => White,
+        }
+    }
+}
+
 pub struct Board {
     array: [Case; 64],
-    current_player: Player,
+    current_player: PlayerId,
+    player1: Player,
+    player2: Player,
 }
 
 impl Board {
@@ -32,36 +77,35 @@ impl Board {
         array[36] = Piece(Black);
         Board {
             array,
-            current_player: Player::Player1,
+            current_player: PlayerId::Player1,
+            player1: Player(White),
+            player2: Player(Black),
+        }
+    }
+
+    pub fn current_player(&self) -> &Player {
+        match self.current_player {
+            PlayerId::Player1 => &self.player1,
+            PlayerId::Player2 => &self.player2,
         }
     }
 
     pub fn place(&mut self, x: usize, y: usize) {
-        match self.current_player {
-            Player::Player1 => {
-                if let Some(&case) = self.cell(x, y)
-                    && case == Empty
-                {
-                    let x1 = self.reverse_piece(x, y);
-                    if x1 {
-                        self.array[x * 8 + y] = Piece(White);
-                    }
+        if let Some(&case) = self.cell(x, y)
+            && case == Empty
+        {
+            let position_available = self.reverse_piece(x, y);
+            if position_available {
+                self.array[x * 8 + y] = Piece(self.current_player_color());
+                self.switch_player();
+
+                if self.current_player().available_positions(self).is_empty() {
+                    self.switch_player();
                 }
-                self.current_player = Player::Player2;
-            }
-            Player::Player2 => {
-                if let Some(&case) = self.cell(x, y)
-                    && case == Empty
-                {
-                    let x2 = self.reverse_piece(x, y);
-                    if x2 {
-                        self.array[x * 8 + y] = Piece(Black);
-                    }
-                }
-                self.current_player = Player::Player1;
             }
         }
     }
+
     pub fn reverse_piece(&mut self, x: usize, y: usize) -> bool {
         if let Some(&cell) = self.cell(x, y)
             && cell != Empty
@@ -74,12 +118,19 @@ impl Board {
         // Todo : voir pour utiliser un iterateur par la suite pour mutualiser avec le retournement de pieces.
         for i in -1..=1 {
             for j in -1..=1 {
-                match self.current_player {
-                    Player::Player1 => {
-                        must_return_piece |= self.reverse_line(x, y, i, j, Black, White);
-                    }
-                    Player::Player2 => {
-                        must_return_piece |= self.reverse_line(x, y, i, j, White, Black);
+                let color_player = self.current_player_color();
+                let pieces = self.scan_flips_in_direction(
+                    x,
+                    y,
+                    i,
+                    j,
+                    self.opponent_player_color(),
+                    self.current_player_color(),
+                );
+                if let Some(pieces) = pieces {
+                    must_return_piece |= !pieces.is_empty();
+                    for piece in pieces {
+                        self.array[piece.0 * 8 + piece.1] = Piece(color_player);
                     }
                 }
             }
@@ -88,52 +139,50 @@ impl Board {
         must_return_piece
     }
 
-    fn reverse_line(
-        &mut self,
+    fn scan_flips_in_direction(
+        &self,
         x: usize,
         y: usize,
         i: isize,
         j: isize,
         color_opposite_player: ColorPiece,
         color_player: ColorPiece,
-    ) -> bool {
-        let mut must_return_piece = false;
+    ) -> Option<Vec<(usize, usize)>> {
+        let mut all_pieces = Vec::new();
 
         if let (Some(nx), Some(ny)) = (x.checked_add_signed(i), y.checked_add_signed(j))
             && !(i == 0 && j == 0)
         {
             let mut pieces = vec![];
-            if let Some(&cell) = self.cell(nx, ny)
-                && let Piece(color) = cell
+            if let Some(&first_case) = self.cell(nx, ny)
+                && let Piece(color) = first_case
                 && color == color_opposite_player
             {
                 pieces.push((nx, ny));
                 for k in 2..=8 {
                     if let (Some(nx), Some(ny)) =
                         (x.checked_add_signed(k * i), y.checked_add_signed(k * j))
+                        && let Some(other_case) = self.cell(nx, ny)
                     {
-                        let cell = self.cell(nx, ny);
-                        if cell.filter(|&&c| c == Empty).is_some() {
-                            continue;
-                        }
-                        if let Some(case) = cell
-                            && let Piece(color) = case
-                            && color == &color_player
-                        {
-                            //cell.filter(|&&c| c == color_player).is_some() {
-                            pieces.iter().for_each(|(a, b)| {
-                                self.array[a * 8 + b] = Piece(color_player);
-                            });
-                            must_return_piece |= true;
-                            continue;
-                        } else {
-                            pieces.push((nx, ny));
+                        match other_case {
+                            Empty => break,
+                            Piece(color) if color == &color_player => {
+                                all_pieces.append(&mut pieces);
+                                break;
+                            }
+                            Piece(_color) => {
+                                pieces.push((nx, ny));
+                            }
                         }
                     }
                 }
             }
         }
-        must_return_piece
+        if !all_pieces.is_empty() {
+            Option::from(all_pieces)
+        } else {
+            None
+        }
     }
 
     pub fn cell(&self, i: usize, j: usize) -> Option<&Case> {
@@ -143,8 +192,32 @@ impl Board {
         self.array.get(i * 8 + j)
     }
 
+    fn current_player_color(&self) -> ColorPiece {
+        match self.current_player {
+            PlayerId::Player1 => self.player1.0,
+            PlayerId::Player2 => self.player2.0,
+        }
+    }
+
+    fn opponent_player_color(&self) -> ColorPiece {
+        match self.current_player {
+            PlayerId::Player1 => self.player2.0,
+            PlayerId::Player2 => self.player1.0,
+        }
+    }
+
+    fn switch_player(&mut self) {
+        self.current_player = match self.current_player {
+            PlayerId::Player1 => PlayerId::Player2,
+            PlayerId::Player2 => PlayerId::Player1,
+        }
+    }
+
     pub fn end_of_game(&self) -> bool {
-        false
+        let board_has_cell_empty = self.array.contains(&Empty);
+        !board_has_cell_empty
+            || (self.player1.available_positions(self).is_empty()
+                && self.player2.available_positions(self).is_empty())
     }
 }
 
@@ -168,7 +241,7 @@ mod tests {
     #[test]
     fn should_test_position() {
         // Given
-        let board = Board::new();
+        let _board = Board::new();
 
         // When
         // board.add_black_case(25);
