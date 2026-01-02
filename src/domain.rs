@@ -162,9 +162,9 @@ impl Board {
                 for k in 2..=8 {
                     if let (Some(nx), Some(ny)) =
                         (x.checked_add_signed(k * i), y.checked_add_signed(k * j))
-                        && let Some(other_case) = self.cell(nx, ny)
+                        && let Some(following_case) = self.cell(nx, ny)
                     {
-                        match other_case {
+                        match following_case {
                             Empty => break,
                             Piece(color) if color == &color_player => {
                                 all_pieces.append(&mut pieces);
