@@ -93,7 +93,7 @@ impl Board {
         if let Some(&case) = self.cell(x, y)
             && case == Empty
         {
-            let position_available = self.reverse_piece(x, y);
+            let position_available = self.place_and_flip(x, y);
             if position_available {
                 self.array[x * 8 + y] = Piece(self.current_player().0);
                 self.switch_player();
@@ -105,7 +105,7 @@ impl Board {
         }
     }
 
-    pub fn reverse_piece(&mut self, x: usize, y: usize) -> bool {
+    fn place_and_flip(&mut self, x: usize, y: usize) -> bool {
         if let Some(&cell) = self.cell(x, y)
             && cell != Empty
         {
