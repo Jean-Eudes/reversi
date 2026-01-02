@@ -1,5 +1,7 @@
-use crate::domain::Case::{Empty, Piece};
-use crate::domain::ColorPiece::{Black, White};
+use crate::domain::board::Case::{Empty, Piece};
+use crate::domain::board::ColorPiece::{Black, White};
+use crate::domain::directions::Directions;
+use crate::domain::player::Player;
 
 #[derive(Copy, Clone, PartialEq)]
 pub enum Case {
@@ -8,6 +10,7 @@ pub enum Case {
 }
 
 #[derive(Copy, Clone, PartialEq)]
+#[cfg_attr(test, derive(Debug))]
 pub enum ColorPiece {
     White,
     Black,
@@ -17,79 +20,6 @@ pub enum ColorPiece {
 pub enum PlayerId {
     Player1,
     Player2,
-}
-
-pub struct Player(ColorPiece);
-
-struct Directions {
-    idx: usize,
-}
-
-impl Directions {
-    pub fn new() -> Directions {
-        Directions { idx: 0 }
-    }
-}
-
-impl Iterator for Directions {
-    type Item = (isize, isize);
-
-    fn next(&mut self) -> Option<Self::Item> {
-        const DIRS: [(isize, isize); 8] = [
-            (-1, -1),
-            (-1, 0),
-            (-1, 1),
-            (0, -1),
-            (0, 1),
-            (1, -1),
-            (1, 0),
-            (1, 1),
-        ];
-        if self.idx < DIRS.len() {
-            let dir = DIRS[self.idx];
-            self.idx += 1;
-            Some(dir)
-        } else {
-            None
-        }
-    }
-}
-
-impl Player {
-    pub fn available_positions(&self, board: &Board) -> Vec<(usize, usize)> {
-        let mut available_positions = Vec::new();
-
-        for x in 0..8 {
-            for y in 0..8 {
-                if board.cell(x, y) != Some(&Empty) {
-                    continue;
-                }
-                let directions = Directions::new();
-                for (dx, dy) in directions {
-                    let pieces = board.scan_flips_in_direction(
-                        x,
-                        y,
-                        dx,
-                        dy,
-                        self.opponent_player_color(),
-                        self.0,
-                    );
-                    if pieces.is_some() {
-                        available_positions.push((x, y));
-                    }
-                }
-            }
-        }
-
-        available_positions
-    }
-
-    fn opponent_player_color(&self) -> ColorPiece {
-        match self.0 {
-            White => Black,
-            Black => White,
-        }
-    }
 }
 
 pub struct Board {
@@ -109,8 +39,8 @@ impl Board {
         Board {
             array,
             current_player: PlayerId::Player1,
-            player1: Player(White),
-            player2: Player(Black),
+            player1: Player::new(White),
+            player2: Player::new(Black),
         }
     }
 
@@ -121,31 +51,55 @@ impl Board {
         }
     }
 
+    pub fn available_positions(&self, player: &Player) -> Vec<(usize, usize)> {
+        let mut available_positions = Vec::new();
+
+        for (x, y) in BoardIter::new() {
+            if self.cell(x, y) != Some(&Empty) {
+                continue;
+            }
+            let directions = Directions::new();
+            for (dx, dy) in directions {
+                let pieces = self.scan_flips_in_direction(
+                    x,
+                    y,
+                    dx,
+                    dy,
+                    player.opponent_color(),
+                    player.color(),
+                );
+                if pieces.is_some() {
+                    available_positions.push((x, y));
+                    break;
+                }
+            }
+        }
+        available_positions
+    }
+
     pub fn place(&mut self, x: usize, y: usize) {
-        if let Some(&case) = self.cell(x, y)
-            && case == Empty
-        {
-            let position_available = self.place_and_flip(x, y);
+        if self.cell(x, y) == Some(&Empty) {
+            let position_available = self.flip(x, y);
             if position_available {
-                self.array[x * 8 + y] = Piece(self.current_player().0);
+                self.array[x * 8 + y] = Piece(self.current_player().color());
                 self.switch_player();
 
-                if self.current_player().available_positions(self).is_empty() {
+                if self.available_positions(self.current_player()).is_empty() {
                     self.switch_player();
                 }
             }
         }
     }
 
-    fn place_and_flip(&mut self, x: usize, y: usize) -> bool {
+    fn flip(&mut self, x: usize, y: usize) -> bool {
         if let Some(&cell) = self.cell(x, y)
             && cell != Empty
         {
             return false;
         }
 
-        let player = self.current_player().0;
-        let opponent = self.current_player().opponent_player_color();
+        let player = self.current_player().color();
+        let opponent = self.current_player().opponent_color();
         let mut flipped_any = false;
 
         let directions = Directions::new();
@@ -214,8 +168,39 @@ impl Board {
     pub fn end_of_game(&self) -> bool {
         let board_has_cell_empty = self.array.contains(&Empty);
         !board_has_cell_empty
-            || (self.player1.available_positions(self).is_empty()
-                && self.player2.available_positions(self).is_empty())
+            || (self.available_positions(&self.player1).is_empty()
+                && self.available_positions(&self.player2).is_empty())
+    }
+}
+
+pub struct BoardIter {
+    x: usize,
+    y: usize,
+}
+
+impl BoardIter {
+    pub fn new() -> Self {
+        Self { x: 0, y: 0 }
+    }
+}
+
+impl Iterator for BoardIter {
+    type Item = (usize, usize);
+
+    fn next(&mut self) -> Option<Self::Item> {
+        if self.y >= 8 {
+            return None;
+        }
+
+        let pos = (self.x, self.y);
+
+        self.x += 1;
+        if self.x >= 8 {
+            self.x = 0;
+            self.y += 1;
+        }
+
+        Some(pos)
     }
 }
 

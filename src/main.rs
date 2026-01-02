@@ -9,9 +9,9 @@ use macroquad::prelude::*;
 const CELL_SIZE: f32 = 60f32;
 const BORDER_SIZE: f32 = 30f32;
 
-use crate::domain::ColorPiece::White;
-use crate::domain::{Board, Case};
-use crate::domain::PlayerId::{Player1, Player2};
+use crate::domain::board::ColorPiece::White;
+use crate::domain::board::PlayerId::{Player1, Player2};
+use crate::domain::board::{Board, BoardIter, Case};
 
 mod domain;
 
@@ -30,11 +30,10 @@ async fn main() {
     let _black_piece = generate_piece_sprite(40.0, false).await;
     loop {
         if !plateau.end_of_game() {
-
             clear_background(GREEN);
             create_board();
             create_pieces(&plateau);
-            let positions = plateau.current_player().available_positions(&plateau);
+            let positions = plateau.available_positions(plateau.current_player());
             for position in positions {
                 draw_hint(
                     BORDER_SIZE + position.0 as f32 * CELL_SIZE + CELL_SIZE / 2f32,
@@ -50,11 +49,10 @@ async fn main() {
                 let y = ((mouse_y - BORDER_SIZE) / CELL_SIZE).floor() as usize;
                 plateau.place(x, y);
             } else if plateau.current_player == Player2 {
-                let vec = plateau.current_player().available_positions(&plateau);
+                let vec = plateau.available_positions(plateau.current_player());
                 let num = rand::gen_range(0, vec.len());
                 plateau.place(vec[num].0, vec[num].1);
             }
-
         } else {
             victory_fireworks().await;
         }
@@ -84,26 +82,24 @@ fn create_board() {
 }
 
 fn create_pieces(plateau: &Board) {
-    for i in 0..8 {
-        for j in 0..8 {
-            if let Some(case2) = plateau.cell(i, j) {
-                match case2 {
-                    Case::Empty => {}
-                    Case::Piece(color) => {
-                        // draw_texture(
-                        //     &white_piece,
-                        //     BORDER_SIZE + i as f32 * CELL_SIZE + CELL_SIZE / 2f32,
-                        //     BORDER_SIZE + j as f32 * CELL_SIZE + CELL_SIZE / 2f32,
-                        //     WHITE,
-                        // );
+    for (x, y) in BoardIter::new() {
+        if let Some(case2) = plateau.cell(x, y) {
+            match case2 {
+                Case::Empty => {}
+                Case::Piece(color) => {
+                    // draw_texture(
+                    //     &white_piece,
+                    //     BORDER_SIZE + i as f32 * CELL_SIZE + CELL_SIZE / 2f32,
+                    //     BORDER_SIZE + j as f32 * CELL_SIZE + CELL_SIZE / 2f32,
+                    //     WHITE,
+                    // );
 
-                        draw_piece(
-                            BORDER_SIZE + i as f32 * CELL_SIZE + CELL_SIZE / 2f32,
-                            BORDER_SIZE + j as f32 * CELL_SIZE + CELL_SIZE / 2f32,
-                            20f32,
-                            *color == White,
-                        )
-                    }
+                    draw_piece(
+                        BORDER_SIZE + x as f32 * CELL_SIZE + CELL_SIZE / 2f32,
+                        BORDER_SIZE + y as f32 * CELL_SIZE + CELL_SIZE / 2f32,
+                        20f32,
+                        *color == White,
+                    )
                 }
             }
         }
