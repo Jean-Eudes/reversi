@@ -32,7 +32,7 @@ mod tests {
         assert_eq!(player.color(), White);
         assert_eq!(player.opponent_color(), Black);
     }
-    
+
     #[test]
     pub fn should_return_colors_for_black_player() {
         // Given
