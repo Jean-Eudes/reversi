@@ -27,9 +27,7 @@ impl Player {
 
         for x in 0..8 {
             for y in 0..8 {
-                if let Some(&cell) = board.cell(x, y)
-                    && cell != Empty
-                {
+                if board.cell(x, y) != Some(&Empty) {
                     continue;
                 }
 
