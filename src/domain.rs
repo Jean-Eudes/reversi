@@ -96,7 +96,7 @@ impl Board {
         {
             let position_available = self.reverse_piece(x, y);
             if position_available {
-                self.array[x * 8 + y] = Piece(self.current_player_color());
+                self.array[x * 8 + y] = Piece(self.current_player().0);
                 self.switch_player();
 
                 if self.current_player().available_positions(self).is_empty() {
@@ -118,14 +118,14 @@ impl Board {
         // Todo : voir pour utiliser un iterateur par la suite pour mutualiser avec le retournement de pieces.
         for i in -1..=1 {
             for j in -1..=1 {
-                let color_player = self.current_player_color();
+                let color_player = self.current_player().0;
                 let pieces = self.scan_flips_in_direction(
                     x,
                     y,
                     i,
                     j,
-                    self.opponent_player_color(),
-                    self.current_player_color(),
+                    self.current_player().opponent_player_color(),
+                    self.current_player().0,
                 );
                 if let Some(pieces) = pieces {
                     must_return_piece |= !pieces.is_empty();
@@ -190,20 +190,6 @@ impl Board {
             return None;
         }
         self.array.get(i * 8 + j)
-    }
-
-    fn current_player_color(&self) -> ColorPiece {
-        match self.current_player {
-            PlayerId::Player1 => self.player1.0,
-            PlayerId::Player2 => self.player2.0,
-        }
-    }
-
-    fn opponent_player_color(&self) -> ColorPiece {
-        match self.current_player {
-            PlayerId::Player1 => self.player2.0,
-            PlayerId::Player2 => self.player1.0,
-        }
     }
 
     fn switch_player(&mut self) {
