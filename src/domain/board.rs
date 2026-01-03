@@ -4,9 +4,20 @@ use crate::domain::directions::Directions;
 use crate::domain::player::Player;
 
 #[derive(Copy, Clone, PartialEq)]
+#[cfg_attr(test, derive(Debug))]
 pub enum Case {
     Empty,
     Piece(ColorPiece),
+}
+
+impl Case {
+    fn flip(&mut self) {
+        *self = match self {
+            Empty => Empty,
+            Piece(White) => Piece(Black),
+            Piece(Black) => Piece(White),
+        }
+    }
 }
 
 #[derive(Copy, Clone, PartialEq)]
@@ -92,9 +103,7 @@ impl Board {
     }
 
     fn flip(&mut self, x: usize, y: usize) -> bool {
-        if let Some(&cell) = self.cell(x, y)
-            && cell != Empty
-        {
+        if matches!(self.cell(x, y), Some(Piece(_))) {
             return false;
         }
 
@@ -108,7 +117,7 @@ impl Board {
             if let Some(pieces) = pieces {
                 flipped_any = true;
                 for piece in pieces {
-                    self.array[piece.0 * 8 + piece.1] = Piece(player);
+                    self.array[piece.0 * 8 + piece.1].flip();
                 }
             }
         }
@@ -234,5 +243,29 @@ mod tests {
         // assert_eq!(board.cell(3, 4), Black);
         // assert_eq!(board.cell(4, 3), Black);
         // assert_eq!(board.cell(4, 4), Black);
+    }
+
+    #[test]
+    fn should_flip_white_piece_to_black() {
+        // Given
+        let mut case = Piece(White);
+
+        // When
+        case.flip();
+
+        // Then
+        assert_eq!(case, Piece(Black))
+    }
+
+    #[test]
+    fn should_flip_black_piece_to_white() {
+        // Given
+        let mut case = Piece(Black);
+
+        // When
+        case.flip();
+
+        // Then
+        assert_eq!(case, Piece(White))
     }
 }
