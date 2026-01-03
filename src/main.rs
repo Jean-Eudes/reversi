@@ -4,7 +4,7 @@ use macroquad::{
     shapes::{draw_circle, draw_line},
     window::{clear_background, next_frame},
 };
-use std::iter::repeat;
+use std::iter::repeat_n;
 
 use macroquad::prelude::*;
 const CELL_SIZE: f32 = 60f32;
@@ -24,7 +24,7 @@ enum GameState {
 }
 
 enum VictoryState {
-    RevealPieces(usize, usize),
+    RevealPieces { animation_start: f64, player1: usize, player2: usize },
     Fireworks,
 }
 
@@ -43,7 +43,6 @@ async fn main() {
     let _white_piece = generate_piece_sprite(40.0, true).await;
     let _black_piece = generate_piece_sprite(40.0, false).await;
 
-    let mut victory_start_time = None;
     let reveal_delay = 0.1;
 
     let mut state = GameState::Start;
@@ -57,8 +56,8 @@ async fn main() {
             GameState::Playing(board) => {
                 clear_background(GREEN);
                 create_board();
-                create_pieces(&board);
-                let positions = use_case.compute_available_moves_use_case.execute(&board);
+                create_pieces(board);
+                let positions = use_case.compute_available_moves_use_case.execute(board);
                 for position in positions {
                     draw_hint(
                         BORDER_SIZE + position.0 as f32 * CELL_SIZE + CELL_SIZE / 2f32,
@@ -78,30 +77,27 @@ async fn main() {
                     use_case.play_ai_move_use_case.execute(board);
                 }
 
-                if let Some(score) = use_case.evaluate_game_end_use_case.execute(&board) {
-                    state = GameState::Victory(VictoryState::RevealPieces(
-                        score.player1(),
-                        score.player2(),
-                    ));
+                if let Some(score) = use_case.evaluate_game_end_use_case.execute(board) {
+                    state = GameState::Victory(VictoryState::RevealPieces {
+                        animation_start: get_time(),
+                        player1: score.player1(),
+                        player2: score.player2()
+                    });
                 }
             }
 
-            GameState::Victory(VictoryState::RevealPieces(player1, player2)) => {
-                if victory_start_time.is_none() {
-                    victory_start_time = Some(get_time());
-                }
+            GameState::Victory(VictoryState::RevealPieces { animation_start, player1, player2 }) => {
                 clear_background(GREEN);
                 create_board();
 
                 let done = create_pieces_for_victory(
-                    victory_start_time.unwrap(),
+                    *animation_start,
                     reveal_delay,
                     *player1,
                     *player2,
                 );
                 if done {
                     state = GameState::Victory(VictoryState::Fireworks);
-                    victory_start_time = None;
                 }
             }
             GameState::Victory(VictoryState::Fireworks) => {
@@ -158,12 +154,13 @@ fn create_pieces(plateau: &Board) {
     }
 }
 fn create_pieces_for_victory(start_time: f64, delay: f64, player1: usize, player2: usize) -> bool {
-    let pieces: Vec<ColorPiece> = repeat(White)
-        .take(player1)
-        .chain(repeat(Black).take(player2))
+    let pieces: Vec<ColorPiece> = repeat_n(White, player1)
+        .chain(repeat_n(Black, player2))
         .collect();
 
     let elapsed = get_time() - start_time;
+    let animation_duration = pieces.len() as f64 * delay;
+
     let count_to_show = (elapsed / delay).floor() as usize;
     let count_to_show = count_to_show.min(pieces.len());
 
@@ -173,8 +170,11 @@ fn create_pieces_for_victory(start_time: f64, delay: f64, player1: usize, player
         draw_piece(x, y, 20f32, *color == White);
     }
 
-    // Retourne true si l’animation est terminée
-    count_to_show == pieces.len()
+    if elapsed < animation_duration + 1.2 {
+        return false;
+    }
+
+    true
 }
 
 pub fn draw_piece(x: f32, y: f32, radius: f32, is_white: bool) {
