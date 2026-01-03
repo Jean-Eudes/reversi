@@ -1,6 +1,6 @@
 use macroquad::{
     color::{BLACK, GREEN, WHITE},
-    input::{MouseButton, is_mouse_button_pressed, mouse_position},
+    input::{is_mouse_button_pressed, mouse_position, MouseButton},
     shapes::{draw_circle, draw_line},
     window::{clear_background, next_frame},
 };
@@ -11,9 +11,19 @@ const BORDER_SIZE: f32 = 30f32;
 
 use crate::domain::board::ColorPiece::White;
 use crate::domain::board::PlayerId::{Player1, Player2};
-use crate::domain::board::{Board, BoardIter, Case};
+use crate::domain::board::{Board, BoardIter, Case, ColorPiece};
 
 mod domain;
+
+enum GameState {
+    Playing,
+    Victory(VictoryState),
+}
+
+enum VictoryState {
+    RevealPieces,
+    Fireworks,
+}
 
 fn window_conf() -> Conf {
     Conf {
@@ -28,35 +38,64 @@ async fn main() {
     let mut plateau = Board::new();
     let _white_piece = generate_piece_sprite(40.0, true).await;
     let _black_piece = generate_piece_sprite(40.0, false).await;
+
+    let mut victory_start_time = None;
+    let reveal_delay = 0.1;
+
+    let mut state = GameState::Playing;
+
     loop {
-        if !plateau.end_of_game() {
-            clear_background(GREEN);
-            create_board();
-            create_pieces(&plateau);
-            let positions = plateau.available_positions(plateau.current_player());
-            for position in positions {
-                draw_hint(
-                    BORDER_SIZE + position.0 as f32 * CELL_SIZE + CELL_SIZE / 2f32,
-                    BORDER_SIZE + position.1 as f32 * CELL_SIZE + CELL_SIZE / 2f32,
-                    10f32,
-                );
+        match state {
+            GameState::Playing => {
+                clear_background(GREEN);
+                create_board();
+                create_pieces(&plateau);
+                let positions = plateau.available_positions(plateau.current_player());
+                for position in positions {
+                    draw_hint(
+                        BORDER_SIZE + position.0 as f32 * CELL_SIZE + CELL_SIZE / 2f32,
+                        BORDER_SIZE + position.1 as f32 * CELL_SIZE + CELL_SIZE / 2f32,
+                        10f32,
+                    );
+                }
+
+                if plateau.current_player == Player1 && is_mouse_button_pressed(MouseButton::Left) {
+                    let (mouse_x, mouse_y) = mouse_position();
+
+                    let x = ((mouse_x - BORDER_SIZE) / CELL_SIZE).floor() as usize;
+                    let y = ((mouse_y - BORDER_SIZE) / CELL_SIZE).floor() as usize;
+                    plateau.place(x, y);
+                } else if plateau.current_player == Player2 {
+                    let vec = plateau.available_positions(plateau.current_player());
+                    let num = rand::gen_range(0, vec.len());
+                    plateau.place(vec[num].0, vec[num].1);
+                }
+
+                if plateau.end_of_game() {
+                    state = GameState::Victory(VictoryState::RevealPieces);
+                }
             }
 
-            if plateau.current_player == Player1 && is_mouse_button_pressed(MouseButton::Left) {
-                let (mouse_x, mouse_y) = mouse_position();
+            GameState::Victory(VictoryState::RevealPieces) => {
+                if victory_start_time.is_none() {
+                    victory_start_time = Some(get_time());
+                }
+                clear_background(GREEN);
+                create_board();
 
-                let x = ((mouse_x - BORDER_SIZE) / CELL_SIZE).floor() as usize;
-                let y = ((mouse_y - BORDER_SIZE) / CELL_SIZE).floor() as usize;
-                plateau.place(x, y);
-            } else if plateau.current_player == Player2 {
-                let vec = plateau.available_positions(plateau.current_player());
-                let num = rand::gen_range(0, vec.len());
-                plateau.place(vec[num].0, vec[num].1);
+                let done =
+                    create_pieces_for_victory(&plateau, victory_start_time.unwrap(), reveal_delay);
+                if done {
+                    state = GameState::Victory(VictoryState::Fireworks);
+                    victory_start_time = None;
+                }
             }
-        } else {
-            victory_fireworks().await;
+            GameState::Victory(VictoryState::Fireworks) => {
+                victory_fireworks().await;
+                plateau = Board::new();
+                state = GameState::Playing;
+            }
         }
-
         next_frame().await
     }
 }
@@ -104,6 +143,32 @@ fn create_pieces(plateau: &Board) {
             }
         }
     }
+}
+fn create_pieces_for_victory(plateau: &Board, start_time: f64, delay: f64) -> bool {
+    let mut pieces: Vec<ColorPiece> = BoardIter::new()
+        .filter_map(|(x, y)| match plateau.cell(x, y) {
+            Some(Case::Piece(c)) => Some(*c),
+            _ => None,
+        })
+        .collect();
+
+    pieces.sort_by_key(|c| match c {
+        ColorPiece::White => 0,
+        ColorPiece::Black => 1,
+    });
+
+    let elapsed = get_time() - start_time;
+    let count_to_show = (elapsed / delay).floor() as usize;
+    let count_to_show = count_to_show.min(pieces.len());
+
+    for (i, color) in pieces.iter().take(count_to_show).enumerate() {
+        let x = BORDER_SIZE + (i % 8) as f32 * CELL_SIZE + CELL_SIZE / 2f32;
+        let y = BORDER_SIZE + (i / 8) as f32 * CELL_SIZE + CELL_SIZE / 2f32;
+        draw_piece(x, y, 20f32, *color == White);
+    }
+
+    // Retourne true si l’animation est terminée
+    count_to_show == pieces.len()
 }
 
 pub fn draw_piece(x: f32, y: f32, radius: f32, is_white: bool) {
@@ -287,7 +352,7 @@ pub async fn victory_fireworks() {
         particles.retain(|p| p.life > 0.0);
 
         // Dessin
-        clear_background(BLACK);
+        // clear_background(BLACK);
 
         for p in &particles {
             p.draw();
