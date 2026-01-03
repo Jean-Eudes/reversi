@@ -4,24 +4,27 @@ use macroquad::{
     shapes::{draw_circle, draw_line},
     window::{clear_background, next_frame},
 };
+use std::iter::repeat;
 
 use macroquad::prelude::*;
 const CELL_SIZE: f32 = 60f32;
 const BORDER_SIZE: f32 = 30f32;
 
-use crate::domain::board::ColorPiece::White;
+use crate::domain::board::ColorPiece::{Black, White};
 use crate::domain::board::PlayerId::{Player1, Player2};
 use crate::domain::board::{Board, BoardIter, Case, ColorPiece};
 
+mod application;
 mod domain;
 
 enum GameState {
-    Playing,
+    Start,
+    Playing(Board),
     Victory(VictoryState),
 }
 
 enum VictoryState {
-    RevealPieces,
+    RevealPieces(usize, usize),
     Fireworks,
 }
 
@@ -35,22 +38,27 @@ fn window_conf() -> Conf {
 
 #[macroquad::main(window_conf)]
 async fn main() {
-    let mut plateau = Board::new();
+    let use_case = application::use_case::UseCase::new();
+
     let _white_piece = generate_piece_sprite(40.0, true).await;
     let _black_piece = generate_piece_sprite(40.0, false).await;
 
     let mut victory_start_time = None;
     let reveal_delay = 0.1;
 
-    let mut state = GameState::Playing;
+    let mut state = GameState::Start;
 
     loop {
-        match state {
-            GameState::Playing => {
+        match &mut state {
+            GameState::Start => {
+                let board = use_case.initialize_game_use_case.execute();
+                state = GameState::Playing(board);
+            }
+            GameState::Playing(board) => {
                 clear_background(GREEN);
                 create_board();
-                create_pieces(&plateau);
-                let positions = plateau.available_positions(plateau.current_player());
+                create_pieces(&board);
+                let positions = use_case.compute_available_moves_use_case.execute(&board);
                 for position in positions {
                     draw_hint(
                         BORDER_SIZE + position.0 as f32 * CELL_SIZE + CELL_SIZE / 2f32,
@@ -59,32 +67,38 @@ async fn main() {
                     );
                 }
 
-                if plateau.current_player == Player1 && is_mouse_button_pressed(MouseButton::Left) {
+                if board.current_player == Player1 && is_mouse_button_pressed(MouseButton::Left) {
                     let (mouse_x, mouse_y) = mouse_position();
 
                     let x = ((mouse_x - BORDER_SIZE) / CELL_SIZE).floor() as usize;
                     let y = ((mouse_y - BORDER_SIZE) / CELL_SIZE).floor() as usize;
-                    plateau.place(x, y);
-                } else if plateau.current_player == Player2 {
-                    let vec = plateau.available_positions(plateau.current_player());
-                    let num = rand::gen_range(0, vec.len());
-                    plateau.place(vec[num].0, vec[num].1);
+
+                    use_case.play_move_use_case.execute(board, x, y);
+                } else if board.current_player == Player2 {
+                    use_case.play_ai_move_use_case.execute(board);
                 }
 
-                if plateau.end_of_game() {
-                    state = GameState::Victory(VictoryState::RevealPieces);
+                if let Some(score) = use_case.evaluate_game_end_use_case.execute(&board) {
+                    state = GameState::Victory(VictoryState::RevealPieces(
+                        score.player1(),
+                        score.player2(),
+                    ));
                 }
             }
 
-            GameState::Victory(VictoryState::RevealPieces) => {
+            GameState::Victory(VictoryState::RevealPieces(player1, player2)) => {
                 if victory_start_time.is_none() {
                     victory_start_time = Some(get_time());
                 }
                 clear_background(GREEN);
                 create_board();
 
-                let done =
-                    create_pieces_for_victory(&plateau, victory_start_time.unwrap(), reveal_delay);
+                let done = create_pieces_for_victory(
+                    victory_start_time.unwrap(),
+                    reveal_delay,
+                    *player1,
+                    *player2,
+                );
                 if done {
                     state = GameState::Victory(VictoryState::Fireworks);
                     victory_start_time = None;
@@ -92,8 +106,7 @@ async fn main() {
             }
             GameState::Victory(VictoryState::Fireworks) => {
                 victory_fireworks().await;
-                plateau = Board::new();
-                state = GameState::Playing;
+                state = GameState::Start;
             }
         }
         next_frame().await
@@ -144,18 +157,11 @@ fn create_pieces(plateau: &Board) {
         }
     }
 }
-fn create_pieces_for_victory(plateau: &Board, start_time: f64, delay: f64) -> bool {
-    let mut pieces: Vec<ColorPiece> = BoardIter::new()
-        .filter_map(|(x, y)| match plateau.cell(x, y) {
-            Some(Case::Piece(c)) => Some(*c),
-            _ => None,
-        })
+fn create_pieces_for_victory(start_time: f64, delay: f64, player1: usize, player2: usize) -> bool {
+    let pieces: Vec<ColorPiece> = repeat(White)
+        .take(player1)
+        .chain(repeat(Black).take(player2))
         .collect();
-
-    pieces.sort_by_key(|c| match c {
-        ColorPiece::White => 0,
-        ColorPiece::Black => 1,
-    });
 
     let elapsed = get_time() - start_time;
     let count_to_show = (elapsed / delay).floor() as usize;

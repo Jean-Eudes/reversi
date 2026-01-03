@@ -40,6 +40,20 @@ pub struct Board {
     player2: Player,
 }
 
+pub struct Score {
+    player1: usize,
+    player2: usize,
+}
+
+impl Score {
+    pub fn player1(&self) -> usize {
+        self.player1
+    }
+    pub fn player2(&self) -> usize {
+        self.player2
+    }
+}
+
 impl Board {
     pub fn new() -> Board {
         let mut array = [Empty; 64];
@@ -174,11 +188,18 @@ impl Board {
         }
     }
 
-    pub fn end_of_game(&self) -> bool {
+    pub fn end_of_game(&self) -> Option<Score> {
         let board_has_cell_empty = self.array.contains(&Empty);
-        !board_has_cell_empty
+        if !board_has_cell_empty
             || (self.available_positions(&self.player1).is_empty()
-                && self.available_positions(&self.player2).is_empty())
+                && self.available_positions(&self.player2).is_empty()) {
+            Some(Score {
+                player1: self.array.iter().filter(|&&c| c == Piece(White)).count() ,
+                player2: self.array.iter().filter(|&&c| c == Piece(Black)).count(),
+            })
+        } else {
+            None
+        }
     }
 }
 
@@ -227,7 +248,7 @@ mod tests {
         let result = board.end_of_game();
 
         // Then
-        assert_eq!(result, false);
+        assert_eq!(result.is_some(), false);
     }
 
     #[test]
