@@ -16,7 +16,7 @@ mod tests {
     use crate::domain::board::{BoardIter, PlayerId};
 
     #[test]
-    fn test_start_game_use_case() {
+    fn should_initialize_game_with_correct_initial_state_and_player() {
         // Given
         let use_case = StartGameUseCase {};
 

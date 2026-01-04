@@ -253,21 +253,6 @@ mod tests {
     }
 
     #[test]
-    fn should_test_position() {
-        // Given
-        let _board = Board::new();
-
-        // When
-        // board.add_black_case(25);
-
-        // Then
-        // assert_eq!(board.cell(3, 3), White);
-        // assert_eq!(board.cell(3, 4), Black);
-        // assert_eq!(board.cell(4, 3), Black);
-        // assert_eq!(board.cell(4, 4), Black);
-    }
-
-    #[test]
     fn should_flip_white_piece_to_black() {
         // Given
         let mut case = Piece(White);
