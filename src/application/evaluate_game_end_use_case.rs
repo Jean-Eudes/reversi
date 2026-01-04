@@ -45,8 +45,8 @@ mod tests {
         assert_eq!(score.player1(), 0);
         assert_eq!(score.player2(), 64);
     }
-    #[test]
 
+    #[test]
     fn should_game_is_ending_when_no_move_is_available() {
         // Given
         let use_case = EvaluateGameEndUseCase {};
@@ -64,5 +64,5 @@ mod tests {
         assert_eq!(score.player1(), 2);
         assert_eq!(score.player2(), 0);
     }
-    
+
 }
