@@ -70,6 +70,16 @@ impl Board {
         }
     }
 
+    #[cfg(test)]
+    pub fn create_board_for_test(array: [Case; 64]) -> Board {
+        Board {
+            array,
+            current_player: PlayerId::Player1,
+            player1: Player::new(White),
+            player2: Player::new(Black),
+        }
+    }
+
     pub fn current_player(&self) -> &Player {
         match self.current_player {
             PlayerId::Player1 => &self.player1,
@@ -193,9 +203,10 @@ impl Board {
         let board_has_cell_empty = self.array.contains(&Empty);
         if !board_has_cell_empty
             || (self.available_positions(&self.player1).is_empty()
-                && self.available_positions(&self.player2).is_empty()) {
+                && self.available_positions(&self.player2).is_empty())
+        {
             Some(Score {
-                player1: self.array.iter().filter(|&&c| c == Piece(White)).count() ,
+                player1: self.array.iter().filter(|&&c| c == Piece(White)).count(),
                 player2: self.array.iter().filter(|&&c| c == Piece(Black)).count(),
             })
         } else {
