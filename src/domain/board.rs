@@ -28,6 +28,7 @@ pub enum ColorPiece {
 }
 
 #[derive(PartialEq)]
+#[cfg_attr(test, derive(Debug))]
 pub enum PlayerId {
     Player1,
     Player2,
