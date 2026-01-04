@@ -1,12 +1,14 @@
 use macroquad::{
     color::{BLACK, GREEN, WHITE},
-    input::{is_mouse_button_pressed, mouse_position, MouseButton},
+    input::{MouseButton, is_mouse_button_pressed, mouse_position},
     shapes::{draw_circle, draw_line},
     window::{clear_background, next_frame},
 };
 use std::iter::repeat_n;
 
+use application::use_case::UseCase;
 use macroquad::prelude::*;
+
 const CELL_SIZE: f32 = 60f32;
 const BORDER_SIZE: f32 = 30f32;
 
@@ -19,12 +21,16 @@ mod domain;
 
 enum GameState {
     Start,
-    Playing(Board),
+    Playing(f64, Board),
     Victory(VictoryState),
 }
 
 enum VictoryState {
-    RevealPieces { animation_start: f64, player1: usize, player2: usize },
+    RevealPieces {
+        animation_start: f64,
+        player1: usize,
+        player2: usize,
+    },
     Fireworks,
 }
 
@@ -38,11 +44,12 @@ fn window_conf() -> Conf {
 
 #[macroquad::main(window_conf)]
 async fn main() {
-    let use_case = application::use_case::UseCase::new();
+    let use_case = UseCase::new();
 
-    let _white_piece = generate_piece_sprite(40.0, true).await;
-    let _black_piece = generate_piece_sprite(40.0, false).await;
+    /*    let _white_piece = generate_piece_sprite(40.0, true).await;
+        let _black_piece = generate_piece_sprite(40.0, false).await;
 
+    */
     let reveal_delay = 0.1;
 
     let mut state = GameState::Start;
@@ -51,9 +58,9 @@ async fn main() {
         match &mut state {
             GameState::Start => {
                 let board = use_case.initialize_game_use_case.execute();
-                state = GameState::Playing(board);
+                state = GameState::Playing(get_time(), board);
             }
-            GameState::Playing(board) => {
+            GameState::Playing(start_time, board) => {
                 clear_background(GREEN);
                 create_board();
                 create_pieces(board);
@@ -73,7 +80,8 @@ async fn main() {
                     let y = ((mouse_y - BORDER_SIZE) / CELL_SIZE).floor() as usize;
 
                     use_case.play_move_use_case.execute(board, x, y);
-                } else if board.current_player == Player2 {
+                    *start_time = get_time();
+                } else if board.current_player == Player2 && get_time() - *start_time > 0.8 {
                     use_case.play_ai_move_use_case.execute(board);
                 }
 
@@ -81,21 +89,21 @@ async fn main() {
                     state = GameState::Victory(VictoryState::RevealPieces {
                         animation_start: get_time(),
                         player1: score.player1(),
-                        player2: score.player2()
+                        player2: score.player2(),
                     });
                 }
             }
 
-            GameState::Victory(VictoryState::RevealPieces { animation_start, player1, player2 }) => {
+            GameState::Victory(VictoryState::RevealPieces {
+                animation_start,
+                player1,
+                player2,
+            }) => {
                 clear_background(GREEN);
                 create_board();
 
-                let done = create_pieces_for_victory(
-                    *animation_start,
-                    reveal_delay,
-                    *player1,
-                    *player2,
-                );
+                let done =
+                    create_pieces_for_victory(*animation_start, reveal_delay, *player1, *player2);
                 if done {
                     state = GameState::Victory(VictoryState::Fireworks);
                 }
@@ -347,7 +355,7 @@ pub async fn victory_fireworks() {
             break;
         }
 
-        // Nouvelle explosion toutes les 0.7 secondes
+        // Nouvelle explosion toutes les 0.7 seconde
         if spawn_timer > 0.7 {
             spawn_firework(&mut particles);
             spawn_timer = 0.0;
