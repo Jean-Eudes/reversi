@@ -41,6 +41,7 @@ pub struct Board {
     player2: Player,
 }
 
+#[cfg_attr(test, derive(Debug))]
 pub struct Score {
     player1: usize,
     player2: usize,

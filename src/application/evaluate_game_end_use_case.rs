@@ -26,7 +26,7 @@ mod tests {
 
         // Then
         assert!(matches!(result, Some(_)));
-        let score = result.unwrap();
+        let score = result.expect("Score must be Some");
         assert_eq!(score.player1(), 64);
         assert_eq!(score.player2(), 0);
     }
@@ -41,7 +41,7 @@ mod tests {
 
         // Then
         assert!(matches!(result, Some(_)));
-        let score = result.unwrap();
+        let score = result.expect("Score must be Some");
         assert_eq!(score.player1(), 0);
         assert_eq!(score.player2(), 64);
     }
@@ -60,9 +60,8 @@ mod tests {
 
         // Then
         assert!(matches!(result, Some(_)));
-        let score = result.unwrap();
+        let score = result.expect("Score must be Some");
         assert_eq!(score.player1(), 2);
         assert_eq!(score.player2(), 0);
     }
-
 }
