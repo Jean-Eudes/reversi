@@ -10,3 +10,6 @@ panic = "abort"
 
 [dependencies]
 macroquad = "0.4.14"
+
+[dev-dependencies]
+mockall = "0.14.0"

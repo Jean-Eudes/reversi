@@ -30,6 +30,7 @@ mod tests {
         assert_eq!(score.player1(), 64);
         assert_eq!(score.player2(), 0);
     }
+
     #[test]
     fn should_game_is_ending_when_board_is_full_of_black_pieces() {
         // Given

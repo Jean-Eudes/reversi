@@ -1,6 +1,6 @@
 use macroquad::{
     color::{GREEN, WHITE},
-    input::{MouseButton, is_mouse_button_pressed, mouse_position},
+    input::{is_mouse_button_pressed, mouse_position, MouseButton},
     window::{clear_background, next_frame},
 };
 use std::iter::repeat_n;
@@ -67,12 +67,15 @@ async fn main() {
                 create_board();
                 create_pieces(board);
                 let positions = use_case.compute_available_moves_use_case.execute(board);
-                for position in positions {
-                    draw_hint(
-                        BORDER_SIZE + position.0 as f32 * CELL_SIZE + CELL_SIZE / 2f32,
-                        BORDER_SIZE + position.1 as f32 * CELL_SIZE + CELL_SIZE / 2f32,
-                        10f32,
-                    );
+
+                if board.current_player == Player1 {
+                    for position in positions {
+                        draw_hint(
+                            BORDER_SIZE + position.0 as f32 * CELL_SIZE + CELL_SIZE / 2f32,
+                            BORDER_SIZE + position.1 as f32 * CELL_SIZE + CELL_SIZE / 2f32,
+                            10f32,
+                        );
+                    }
                 }
 
                 if board.current_player == Player1 && is_mouse_button_pressed(MouseButton::Left) {
@@ -87,7 +90,9 @@ async fn main() {
                     use_case.play_ai_move_use_case.execute(board);
                 }
 
-                if let Some(score) = use_case.evaluate_game_end_use_case.execute(board) {
+                if let Some(score) = use_case.evaluate_game_end_use_case.execute(board)
+                    && get_time() - *start_time > 0.8
+                {
                     state = GameState::Victory(VictoryState::RevealPieces {
                         animation_start: get_time(),
                         player1: score.player1(),
