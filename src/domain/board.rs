@@ -114,10 +114,10 @@ impl Board {
         available_positions
     }
 
-    pub fn place(&mut self, x: usize, y: usize) {
+    pub fn place(&mut self, x: usize, y: usize) -> Option<Vec<(usize, usize)>> {
         if self.cell(x, y) == Some(&Empty) {
             let position_available = self.flip(x, y);
-            if position_available {
+            if position_available.is_some() {
                 self.array[x * 8 + y] = Piece(self.current_player().color());
                 self.switch_player();
 
@@ -125,30 +125,35 @@ impl Board {
                     self.switch_player();
                 }
             }
+            return position_available;
         }
+        None
     }
 
-    fn flip(&mut self, x: usize, y: usize) -> bool {
+    fn flip(&mut self, x: usize, y: usize) -> Option<Vec<(usize, usize)>> {
         if matches!(self.cell(x, y), Some(Piece(_))) {
-            return false;
+            return None;
         }
 
         let player = self.current_player().color();
         let opponent = self.current_player().opponent_color();
-        let mut flipped_any = false;
+        let mut flipped_pieces = Vec::new();
 
         let directions = Directions::new();
         for (dx, dy) in directions {
             let pieces = self.scan_flips_in_direction(x, y, dx, dy, opponent, player);
-            if let Some(pieces) = pieces {
-                flipped_any = true;
-                for piece in pieces {
+            if let Some(mut pieces) = pieces {
+                for piece in &pieces {
                     self.array[piece.0 * 8 + piece.1].flip();
                 }
-            }
+                flipped_pieces.append(&mut pieces);
+            };
         }
-
-        flipped_any
+        if flipped_pieces.len() == 0 {
+            None
+        } else {
+            Some(flipped_pieces)
+        }
     }
 
     fn scan_flips_in_direction(

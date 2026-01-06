@@ -11,11 +11,11 @@ impl AIMoveUseCase {
         Self { move_use_case }
     }
 
-    pub fn execute(&self, board: &mut Board) {
+    pub fn execute(&self, board: &mut Board) -> Option<Vec<(usize, usize)>> {
         let available_moves = board.available_positions(board.current_player());
         let num = rand::gen_range(0, available_moves.len());
         self.move_use_case
-            .execute(board, available_moves[num].0, available_moves[num].1);
+            .execute(board, available_moves[num].0, available_moves[num].1)
     }
 }
 
@@ -39,7 +39,7 @@ mod tests {
         move_use_case_mock
             .expect_execute()
             .with(predicate::always(), predicate::eq(0), predicate::eq(3))
-            .return_const(());
+            .return_const(vec![]);
 
         let ai_move_use_case = AIMoveUseCase::new(Box::new(move_use_case_mock));
 

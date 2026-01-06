@@ -24,16 +24,18 @@ mod infrastructure;
 enum GameState {
     Start,
     Playing(f64, Board),
-    Victory(VictoryState),
+    EndGame(EndGameState),
 }
 
-enum VictoryState {
+enum EndGameState {
     RevealPieces {
         animation_start: f64,
         player1: usize,
         player2: usize,
     },
-    Fireworks,
+    Fireworks(f64),
+    Lose(f64),
+    Draw(f64),
 }
 
 fn window_conf() -> Conf {
@@ -93,7 +95,7 @@ async fn main() {
                 if let Some(score) = use_case.evaluate_game_end_use_case.execute(board)
                     && get_time() - *start_time > 0.8
                 {
-                    state = GameState::Victory(VictoryState::RevealPieces {
+                    state = GameState::EndGame(EndGameState::RevealPieces {
                         animation_start: get_time(),
                         player1: score.player1(),
                         player2: score.player2(),
@@ -101,7 +103,7 @@ async fn main() {
                 }
             }
 
-            GameState::Victory(VictoryState::RevealPieces {
+            GameState::EndGame(EndGameState::RevealPieces {
                 animation_start,
                 player1,
                 player2,
@@ -110,21 +112,41 @@ async fn main() {
                 create_board();
 
                 let done =
-                    create_pieces_for_victory(*animation_start, reveal_delay, *player1, *player2);
+                    create_pieces_for_end_game(*animation_start, reveal_delay, *player1, *player2);
                 if done {
-                    state = GameState::Victory(VictoryState::Fireworks);
+                    if player1 > player2 {
+                        state = GameState::EndGame(EndGameState::Fireworks(get_time()));
+                    } else if player1 < player2 {
+                        state = GameState::EndGame(EndGameState::Lose(get_time()));
+                    } else if player1 == player2 {
+                        state = GameState::EndGame(EndGameState::Draw(get_time()));
+                    }
                 }
             }
-            GameState::Victory(VictoryState::Fireworks) => {
-                victory_fireworks().await;
+            GameState::EndGame(EndGameState::Fireworks(animation_start)) => {
+                launch_fireworks().await;
                 state = GameState::Start;
+            }
+            GameState::EndGame(EndGameState::Draw(animation_start)) => {
+                if get_time() - *animation_start < 5.0 {
+                    draw_screen();
+                } else {
+                    state = GameState::Start;
+                }
+            }
+            GameState::EndGame(EndGameState::Lose(animation_start)) => {
+                if get_time() - *animation_start < 5.0 {
+                    defeat_screen();
+                } else {
+                    state = GameState::Start;
+                }
             }
         }
         next_frame().await
     }
 }
 
-fn create_pieces_for_victory(start_time: f64, delay: f64, player1: usize, player2: usize) -> bool {
+fn create_pieces_for_end_game(start_time: f64, delay: f64, player1: usize, player2: usize) -> bool {
     let pieces: Vec<ColorPiece> = repeat_n(White, player1)
         .chain(repeat_n(Black, player2))
         .collect();
@@ -148,7 +170,7 @@ fn create_pieces_for_victory(start_time: f64, delay: f64, player1: usize, player
     true
 }
 
-pub async fn victory_fireworks() {
+pub async fn launch_fireworks() {
     let mut particles = Vec::new();
     let mut timer = 0.0;
     let mut spawn_timer = 0.0;
@@ -190,4 +212,24 @@ pub async fn victory_fireworks() {
 
         next_frame().await;
     }
+}
+
+pub fn defeat_screen() {
+    draw_text(
+        "You Lost !",
+        screen_width() / 2.0 - 120.0,
+        80.0,
+        60.0,
+        WHITE,
+    );
+}
+
+pub fn draw_screen() {
+    draw_text(
+        "You Lost !",
+        screen_width() / 2.0 - 120.0,
+        80.0,
+        60.0,
+        WHITE,
+    );
 }

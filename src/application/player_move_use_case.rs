@@ -10,7 +10,7 @@ impl PlayerMoveUseCase {
         Self { move_use_case }
     }
 
-    pub fn execute(&self, board: &mut Board, x: usize, y: usize) {
-        self.move_use_case.execute(board, x, y);
+    pub fn execute(&self, board: &mut Board, x: usize, y: usize) -> Option<Vec<(usize, usize)>> {
+        self.move_use_case.execute(board, x, y)
     }
 }
