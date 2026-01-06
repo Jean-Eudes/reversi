@@ -149,7 +149,7 @@ impl Board {
                 flipped_pieces.append(&mut pieces);
             };
         }
-        if flipped_pieces.len() == 0 {
+        if flipped_pieces.is_empty() {
             None
         } else {
             Some(flipped_pieces)
