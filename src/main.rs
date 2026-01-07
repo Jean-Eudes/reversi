@@ -149,8 +149,8 @@ async fn main() {
 }
 
 fn create_pieces_for_end_game(start_time: f64, delay: f64, player1: usize, player2: usize) -> bool {
-    let pieces: Vec<ColorPiece> = repeat_n(White, player1)
-        .chain(repeat_n(Black, player2))
+    let pieces: Vec<ColorPiece> = repeat_n(Black, player1)
+        .chain(repeat_n(White, player2))
         .collect();
 
     let elapsed = get_time() - start_time;

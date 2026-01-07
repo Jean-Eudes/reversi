@@ -59,15 +59,15 @@ impl Score {
 impl Board {
     pub fn new() -> Board {
         let mut array = [Empty; 64];
-        array[27] = Piece(Black);
-        array[28] = Piece(White);
-        array[35] = Piece(White);
-        array[36] = Piece(Black);
+        array[27] = Piece(White);
+        array[28] = Piece(Black);
+        array[35] = Piece(Black);
+        array[36] = Piece(White);
         Board {
             array,
             current_player: PlayerId::Player1,
-            player1: Player::new(White),
-            player2: Player::new(Black),
+            player1: Player::new(Black),
+            player2: Player::new(White),
         }
     }
 
@@ -212,8 +212,8 @@ impl Board {
                 && self.available_positions(&self.player2).is_empty())
         {
             Some(Score {
-                player1: self.array.iter().filter(|&&c| c == Piece(White)).count(),
-                player2: self.array.iter().filter(|&&c| c == Piece(Black)).count(),
+                player1: self.array.iter().filter(|&&c| c == Piece(self.player1.color())).count(),
+                player2: self.array.iter().filter(|&&c| c == Piece(self.player2.color())).count(),
             })
         } else {
             None
