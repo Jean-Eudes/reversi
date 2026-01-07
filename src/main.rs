@@ -98,7 +98,7 @@ async fn main() {
 
                     use_case.play_move_use_case.execute(board, x, y);
                     *start_time = get_time();
-                } else if board.current_player == Player2 {
+                } else if board.current_player == Player2 && get_time() - *start_time > 0.8  {
                     use_case.play_ai_move_use_case.execute(board);
                     *start_time = get_time();
                 }
