@@ -68,6 +68,16 @@ async fn main() {
                 clear_background(GREEN);
                 create_board();
                 create_pieces(board);
+                
+                if let Some(score) = use_case.evaluate_game_end_use_case.execute(board) {
+                    state = GameState::EndGame(EndGameState::RevealPieces {
+                        animation_start: get_time(),
+                        player1: score.player1(),
+                        player2: score.player2(),
+                    });
+                    continue;
+                }
+
                 let positions = use_case.compute_available_moves_use_case.execute(board);
 
                 if board.current_player == Player1 {
@@ -88,19 +98,11 @@ async fn main() {
 
                     use_case.play_move_use_case.execute(board, x, y);
                     *start_time = get_time();
-                } else if board.current_player == Player2 && get_time() - *start_time > 0.8 {
+                } else if board.current_player == Player2 {
                     use_case.play_ai_move_use_case.execute(board);
+                    *start_time = get_time();
                 }
 
-                if let Some(score) = use_case.evaluate_game_end_use_case.execute(board)
-                    && get_time() - *start_time > 0.8
-                {
-                    state = GameState::EndGame(EndGameState::RevealPieces {
-                        animation_start: get_time(),
-                        player1: score.player1(),
-                        player2: score.player2(),
-                    });
-                }
             }
 
             GameState::EndGame(EndGameState::RevealPieces {
