@@ -29,10 +29,10 @@ mod tests {
             PlayerId::Player1,
             "Initial player should be player1"
         );
-        assert_eq!(board.cell(3, 3), Some(&Piece(Black)));
-        assert_eq!(board.cell(3, 4), Some(&Piece(White)));
-        assert_eq!(board.cell(4, 3), Some(&Piece(White)));
-        assert_eq!(board.cell(4, 4), Some(&Piece(Black)));
+        assert_eq!(board.cell(3, 3), Some(&Piece(White)));
+        assert_eq!(board.cell(3, 4), Some(&Piece(Black)));
+        assert_eq!(board.cell(4, 3), Some(&Piece(Black)));
+        assert_eq!(board.cell(4, 4), Some(&Piece(White)));
         BoardIter::new()
             .filter(|(x, y)| !matches!((x, y), (3 | 4, 3 | 4)))
             .for_each(|(x, y)| {
