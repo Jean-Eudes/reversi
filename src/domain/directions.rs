@@ -1,3 +1,14 @@
+static DIRS: [(isize, isize); 8] = [
+    (-1, -1),
+    (-1, 0),
+    (-1, 1),
+    (0, -1),
+    (0, 1),
+    (1, -1),
+    (1, 0),
+    (1, 1),
+];
+
 pub struct Directions {
     idx: usize,
 }
@@ -12,20 +23,9 @@ impl Iterator for Directions {
     type Item = (isize, isize);
 
     fn next(&mut self) -> Option<Self::Item> {
-        static  DIRS: [(isize, isize); 8] = [
-            (-1, -1),
-            (-1, 0),
-            (-1, 1),
-            (0, -1),
-            (0, 1),
-            (1, -1),
-            (1, 0),
-            (1, 1),
-        ];
         let dir = DIRS.get(self.idx);
         self.idx += 1;
         dir.copied()
-
     }
 }
 
