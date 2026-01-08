@@ -56,8 +56,8 @@ impl Score {
     }
 }
 
-impl Board {
-    pub fn new() -> Board {
+impl Default for Board {
+    fn default() -> Self {
         let mut array = [Empty; 64];
         array[27] = Piece(White);
         array[28] = Piece(Black);
@@ -70,6 +70,9 @@ impl Board {
             player2: Player::new(White),
         }
     }
+}
+
+impl Board {
 
     #[cfg(test)]
     pub fn create_board_for_test(array: [Case; 64]) -> Board {
@@ -91,11 +94,11 @@ impl Board {
     pub fn available_positions(&self, player: &Player) -> Vec<(usize, usize)> {
         let mut available_positions = Vec::new();
 
-        for (x, y) in BoardIter::new() {
+        for (x, y) in BoardIter::default() {
             if self.cell(x, y) != Some(&Empty) {
                 continue;
             }
-            let directions = Directions::new();
+            let directions = Directions::default();
             for (dx, dy) in directions {
                 let pieces = self.scan_flips_in_direction(
                     x,
@@ -139,7 +142,7 @@ impl Board {
         let opponent = self.current_player().opponent_color();
         let mut flipped_pieces = Vec::new();
 
-        let directions = Directions::new();
+        let directions = Directions::default();
         for (dx, dy) in directions {
             let pieces = self.scan_flips_in_direction(x, y, dx, dy, opponent, player);
             if let Some(mut pieces) = pieces {
@@ -226,8 +229,8 @@ pub struct BoardIter {
     y: usize,
 }
 
-impl BoardIter {
-    pub fn new() -> Self {
+impl Default for BoardIter {
+    fn default() -> Self {
         Self { x: 0, y: 0 }
     }
 }
@@ -260,7 +263,7 @@ mod tests {
     #[test]
     fn should_test_if_game_is_over() {
         // Given
-        let board = Board::new();
+        let board = Board::default();
 
         // When
         let result = board.end_of_game();

@@ -2,8 +2,8 @@ pub struct Directions {
     idx: usize,
 }
 
-impl Directions {
-    pub fn new() -> Directions {
+impl Default for Directions {
+    fn default() -> Directions {
         Directions { idx: 0 }
     }
 }
@@ -12,7 +12,7 @@ impl Iterator for Directions {
     type Item = (isize, isize);
 
     fn next(&mut self) -> Option<Self::Item> {
-        const DIRS: [(isize, isize); 8] = [
+        static  DIRS: [(isize, isize); 8] = [
             (-1, -1),
             (-1, 0),
             (-1, 1),
@@ -22,13 +22,10 @@ impl Iterator for Directions {
             (1, 0),
             (1, 1),
         ];
-        if self.idx < DIRS.len() {
-            let dir = DIRS[self.idx];
-            self.idx += 1;
-            Some(dir)
-        } else {
-            None
-        }
+        let dir = DIRS.get(self.idx);
+        self.idx += 1;
+        dir.copied()
+
     }
 }
 
@@ -49,7 +46,7 @@ mod tests {
             (1, 0),
             (1, 1),
         ];
-        let dirs: Vec<(isize, isize)> = Directions::new().collect();
+        let dirs: Vec<(isize, isize)> = Directions::default().collect();
         assert_eq!(dirs, expected);
     }
 }

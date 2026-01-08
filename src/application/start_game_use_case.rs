@@ -4,7 +4,7 @@ pub struct StartGameUseCase {}
 
 impl StartGameUseCase {
     pub fn execute(&self) -> Board {
-        Board::new()
+        Board::default()
     }
 }
 
@@ -33,7 +33,7 @@ mod tests {
         assert_eq!(board.cell(3, 4), Some(&Piece(Black)));
         assert_eq!(board.cell(4, 3), Some(&Piece(Black)));
         assert_eq!(board.cell(4, 4), Some(&Piece(White)));
-        BoardIter::new()
+        BoardIter::default()
             .filter(|(x, y)| !matches!((x, y), (3 | 4, 3 | 4)))
             .for_each(|(x, y)| {
                 assert_eq!(

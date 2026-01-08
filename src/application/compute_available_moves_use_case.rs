@@ -17,7 +17,7 @@ mod tests {
     fn should_compute_available_moves_for_initial_board() {
         // Given
         let use_case = ComputeAvailableMovesUseCase {};
-        let board = Board::new();
+        let board = Board::default();
 
         // When
         let result = use_case.execute(&board);

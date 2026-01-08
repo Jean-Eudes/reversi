@@ -66,7 +66,7 @@ pub fn create_board() {
 }
 
 pub fn create_pieces(plateau: &Board) {
-    for (x, y) in BoardIter::new() {
+    for (x, y) in BoardIter::default() {
         if let Some(case2) = plateau.cell(x, y) {
             match case2 {
                 Case::Empty => {}
