@@ -258,6 +258,82 @@ mod tests {
     use super::*;
 
     #[test]
+    fn should_initialize_board_with_correct_initial_state_and_player() {
+        // Given / When
+        let board = Board::default();
+
+        // Then
+        assert_eq!(
+            board.current_player,
+            PlayerId::Player1,
+            "Initial player should be player1"
+        );
+        assert_eq!(board.cell(3, 3), Some(&Piece(White)));
+        assert_eq!(board.cell(3, 4), Some(&Piece(Black)));
+        assert_eq!(board.cell(4, 3), Some(&Piece(Black)));
+        assert_eq!(board.cell(4, 4), Some(&Piece(White)));
+        BoardIter::default()
+            .filter(|(x, y)| !matches!((x, y), (3 | 4, 3 | 4)))
+            .for_each(|(x, y)| {
+                assert_eq!(
+                    board.cell(x, y),
+                    Some(&Empty),
+                    "Cell ({}, {}) should be empty",
+                    x,
+                    y
+                )
+            });
+    }
+
+    #[test]
+    fn should_game_is_ending_when_board_is_full_of_white_pieces() {
+        // Given
+        let board = Board::create_board_for_test([Case::Piece(White); 64]);
+
+        // When
+        let result = board.end_of_game();
+
+        // Then
+        assert!(matches!(result, Some(_)));
+        let score = result.expect("Score must be Some");
+        assert_eq!(score.player1(), 64);
+        assert_eq!(score.player2(), 0);
+    }
+
+    #[test]
+    fn should_game_is_ending_when_board_is_full_of_black_pieces() {
+        // Given
+        let board = Board::create_board_for_test([Case::Piece(Black); 64]);
+
+        // When
+        let result = board.end_of_game();
+
+        // Then
+        assert!(matches!(result, Some(_)));
+        let score = result.expect("Score must be Some");
+        assert_eq!(score.player1(), 0);
+        assert_eq!(score.player2(), 64);
+    }
+
+    #[test]
+    fn should_game_is_ending_when_no_move_is_available() {
+        // Given
+        let mut array = [Empty; 64];
+        array[3 * 8 + 3] = Case::Piece(White);
+        array[3 * 8 + 4] = Case::Piece(White);
+        let board = Board::create_board_for_test(array);
+
+        // When
+        let result = board.end_of_game();
+
+        // Then
+        assert!(matches!(result, Some(_)));
+        let score = result.expect("Score must be Some");
+        assert_eq!(score.player1(), 2);
+        assert_eq!(score.player2(), 0);
+    }
+
+    #[test]
     fn should_test_if_game_is_over() {
         // Given
         let board = Board::default();
