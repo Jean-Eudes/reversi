@@ -85,7 +85,7 @@ async fn main() {
                 create_board();
                 create_pieces(board);
 
-                if let Some(score) = use_case.evaluate_game_end_use_case.execute(board) {
+                if let Some(score) = use_case.evaluate_game_end_use_case.execute(board) && get_time() - *start_time > 0.8 {
                     state = GameState::EndGame(EndGameState::RevealPieces {
                         animation_start: get_time(),
                         player1: score.player1(),

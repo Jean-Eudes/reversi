@@ -62,6 +62,10 @@ pub fn create_board() {
             3.0,
             BLACK,
         );
+        draw_circle(BORDER_SIZE + CELL_SIZE * 2f32, BORDER_SIZE + CELL_SIZE * 2f32, 5f32, BLACK);
+        draw_circle(BORDER_SIZE + CELL_SIZE * 2f32, BORDER_SIZE + CELL_SIZE * 6f32, 5f32, BLACK);
+        draw_circle(BORDER_SIZE + CELL_SIZE * 6f32, BORDER_SIZE + CELL_SIZE * 2f32, 5f32, BLACK);
+        draw_circle(BORDER_SIZE + CELL_SIZE * 6f32, BORDER_SIZE + CELL_SIZE * 6f32, 5f32, BLACK);
     }
 }
 
