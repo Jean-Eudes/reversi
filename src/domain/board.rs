@@ -224,15 +224,10 @@ impl Board {
     }
 }
 
+#[derive(Default)]
 pub struct BoardIter {
     x: usize,
     y: usize,
-}
-
-impl Default for BoardIter {
-    fn default() -> Self {
-        Self { x: 0, y: 0 }
-    }
 }
 
 impl Iterator for BoardIter {

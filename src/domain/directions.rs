@@ -9,14 +9,9 @@ static DIRS: [(isize, isize); 8] = [
     (1, 1),
 ];
 
+#[derive(Default)]
 pub struct Directions {
     idx: usize,
-}
-
-impl Default for Directions {
-    fn default() -> Directions {
-        Directions { idx: 0 }
-    }
 }
 
 impl Iterator for Directions {

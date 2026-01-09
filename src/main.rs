@@ -15,7 +15,7 @@ use crate::domain::board::ColorPiece::{Black, White};
 use crate::domain::board::PlayerId::{Player1, Player2};
 use crate::domain::board::{Board, ColorPiece};
 use crate::infrastructure::ui::components::{create_board, create_pieces, draw_hint, draw_piece};
-use crate::infrastructure::ui::fireworks::spawn_firework;
+use crate::infrastructure::ui::fireworks::{spawn_firework, Particle};
 
 mod application;
 mod domain;
@@ -33,9 +33,25 @@ enum EndGameState {
         player1: usize,
         player2: usize,
     },
-    Fireworks(f64),
+    Fireworks(FireworkState),
     Lose(f64),
     Draw(f64),
+}
+
+struct FireworkState {
+    particles: Vec<Particle>,
+    timer: f32,
+    spawn_timer: f32,
+}
+
+impl Default for FireworkState {
+    fn default() -> Self {
+        FireworkState {
+            particles: Vec::new(),
+            timer: 0.0,
+            spawn_timer: 0.0,
+        }
+    }
 }
 
 fn window_conf() -> Conf {
@@ -68,7 +84,7 @@ async fn main() {
                 clear_background(GREEN);
                 create_board();
                 create_pieces(board);
-                
+
                 if let Some(score) = use_case.evaluate_game_end_use_case.execute(board) {
                     state = GameState::EndGame(EndGameState::RevealPieces {
                         animation_start: get_time(),
@@ -98,11 +114,10 @@ async fn main() {
 
                     use_case.play_move_use_case.execute(board, x, y);
                     *start_time = get_time();
-                } else if board.current_player == Player2 && get_time() - *start_time > 0.8  {
+                } else if board.current_player == Player2 && get_time() - *start_time > 0.8 {
                     use_case.play_ai_move_use_case.execute(board);
                     *start_time = get_time();
                 }
-
             }
 
             GameState::EndGame(EndGameState::RevealPieces {
@@ -117,7 +132,8 @@ async fn main() {
                     create_pieces_for_end_game(*animation_start, reveal_delay, *player1, *player2);
                 if done {
                     if player1 > player2 {
-                        state = GameState::EndGame(EndGameState::Fireworks(get_time()));
+                        state =
+                            GameState::EndGame(EndGameState::Fireworks(FireworkState::default()));
                     } else if player1 < player2 {
                         state = GameState::EndGame(EndGameState::Lose(get_time()));
                     } else if player1 == player2 {
@@ -125,9 +141,12 @@ async fn main() {
                     }
                 }
             }
-            GameState::EndGame(EndGameState::Fireworks(animation_start)) => {
-                launch_fireworks().await;
-                state = GameState::Start;
+            GameState::EndGame(EndGameState::Fireworks(firework_state)) => {
+                if firework_state.timer > 15.0 {
+                    state = GameState::Start;
+                } else {
+                    launch_fireworks(firework_state);
+                }
             }
             GameState::EndGame(EndGameState::Draw(animation_start)) => {
                 if get_time() - *animation_start < 5.0 {
@@ -172,48 +191,38 @@ fn create_pieces_for_end_game(start_time: f64, delay: f64, player1: usize, playe
     true
 }
 
-pub async fn launch_fireworks() {
-    let mut particles = Vec::new();
-    let mut timer = 0.0;
-    let mut spawn_timer = 0.0;
+fn launch_fireworks(firework_state: &mut FireworkState) {
+    let dt = get_frame_time();
+    firework_state.timer += dt;
+    firework_state.spawn_timer += dt;
 
-    loop {
-        let dt = get_frame_time();
-        timer += dt;
-        spawn_timer += dt;
-
-        // Arrêter après 15 secondes
-        if timer > 15.0 {
-            break;
-        }
-
-        // Nouvelle explosion toutes les 0.7 seconde
-        if spawn_timer > 0.7 {
-            spawn_firework(&mut particles);
-            spawn_timer = 0.0;
-        }
-
-        // Mise à jour des particules
-        particles.iter_mut().for_each(|p| p.update(dt));
-        particles.retain(|p| p.life() > 0.0);
-
-        // Dessin
-        // clear_background(BLACK);
-
-        for p in &particles {
-            p.draw();
-        }
-
-        draw_text(
-            "Victoire !",
-            screen_width() / 2.0 - 120.0,
-            80.0,
-            60.0,
-            WHITE,
-        );
-
-        next_frame().await;
+    // Nouvelle explosion toutes les 0.7 seconde
+    if firework_state.spawn_timer > 0.7 {
+        spawn_firework(firework_state.particles.as_mut());
+        firework_state.spawn_timer = 0.0;
     }
+
+    // Mise à jour des particules
+    firework_state
+        .particles
+        .iter_mut()
+        .for_each(|p| p.update(dt));
+    firework_state.particles.retain(|p| p.life() > 0.0);
+
+    // Dessin
+    // clear_background(BLACK);
+
+    for p in &firework_state.particles {
+        p.draw();
+    }
+
+    draw_text(
+        "Victoire !",
+        screen_width() / 2.0 - 120.0,
+        80.0,
+        60.0,
+        WHITE,
+    );
 }
 
 pub fn defeat_screen() {
