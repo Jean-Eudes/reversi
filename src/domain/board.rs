@@ -78,8 +78,8 @@ impl Board {
         Board {
             array,
             current_player: PlayerId::Player1,
-            player1: Player::new(White),
-            player2: Player::new(Black),
+            player1: Player::new(Black),
+            player2: Player::new(White),
         }
     }
 
@@ -288,53 +288,53 @@ mod tests {
     #[test]
     fn should_game_is_ending_when_board_is_full_of_white_pieces() {
         // Given
-        let board = Board::create_board_for_test([Case::Piece(White); 64]);
+        let board = Board::create_board_for_test([Piece(White); 64]);
 
         // When
         let result = board.end_of_game();
 
         // Then
-        assert!(matches!(result, Some(_)));
-        let score = result.expect("Score must be Some");
-        assert_eq!(score.player1(), 64);
-        assert_eq!(score.player2(), 0);
-    }
-
-    #[test]
-    fn should_game_is_ending_when_board_is_full_of_black_pieces() {
-        // Given
-        let board = Board::create_board_for_test([Case::Piece(Black); 64]);
-
-        // When
-        let result = board.end_of_game();
-
-        // Then
-        assert!(matches!(result, Some(_)));
+        assert!(result.is_some());
         let score = result.expect("Score must be Some");
         assert_eq!(score.player1(), 0);
         assert_eq!(score.player2(), 64);
     }
 
     #[test]
+    fn should_game_is_ending_when_board_is_full_of_black_pieces() {
+        // Given
+        let board = Board::create_board_for_test([Piece(Black); 64]);
+
+        // When
+        let result = board.end_of_game();
+
+        // Then
+        assert!(result.is_some());
+        let score = result.expect("Score must be Some");
+        assert_eq!(score.player1(), 64);
+        assert_eq!(score.player2(), 0);
+    }
+
+    #[test]
     fn should_game_is_ending_when_no_move_is_available() {
         // Given
         let mut array = [Empty; 64];
-        array[3 * 8 + 3] = Case::Piece(White);
-        array[3 * 8 + 4] = Case::Piece(White);
+        array[3 * 8 + 3] = Case::Piece(Black);
+        array[3 * 8 + 4] = Case::Piece(Black);
         let board = Board::create_board_for_test(array);
 
         // When
         let result = board.end_of_game();
 
         // Then
-        assert!(matches!(result, Some(_)));
+        assert!(result.is_some());
         let score = result.expect("Score must be Some");
         assert_eq!(score.player1(), 2);
         assert_eq!(score.player2(), 0);
     }
 
     #[test]
-    fn should_test_if_game_is_over() {
+    fn should_game_is_not_ending_when_game_is_started() {
         // Given
         let board = Board::default();
 
@@ -342,7 +342,7 @@ mod tests {
         let result = board.end_of_game();
 
         // Then
-        assert_eq!(result.is_some(), false);
+        assert!(result.is_none());
     }
 
     #[test]
@@ -367,5 +367,121 @@ mod tests {
 
         // Then
         assert_eq!(case, Piece(White))
+    }
+
+    #[test]
+    fn should_switch_player() {
+        // Given
+        let mut board = Board::default();
+
+        // When
+        board.switch_player();
+
+        // Then
+        assert_eq!(board.current_player, PlayerId::Player2);
+    }
+
+    #[test]
+    fn should_compute_available_moves_for_initial_board() {
+        // Given
+        let board = Board::default();
+
+        // When
+        let result = board.available_positions(board.current_player());
+
+        // Then
+        assert_eq!(result, vec![(3, 2), (2, 3), (5, 4), (4, 5)]);
+    }
+
+    #[test]
+    fn should_not_flip_when_cell_is_already_occupied() {
+        // Given
+        let mut board = Board::default();
+        let x = 3;
+        let y = 3;
+
+        // When
+        let result = board.flip(x, y);
+
+        // Then
+        assert!(result.is_none());
+    }
+
+    #[test]
+    fn should_not_flip_when_cell_is_empty_but_not_flippable() {
+        // Given
+        let mut board = Board::default();
+        let x = 0;
+        let y = 0;
+
+        // When
+        let result = board.flip(x, y);
+
+        // Then
+        assert!(result.is_none());
+    }
+
+    #[test]
+    fn should_flip_when_cell_is_empty_and_flippable() {
+        // Given
+        let mut board = Board::default();
+        let x = 3;
+        let y = 2;
+
+        // When
+        let result = board.flip(x, y);
+
+        // Then
+        assert!(result.is_some());
+        let flipped_pieces = result.expect("Should have flipped pieces");
+        assert_eq!(flipped_pieces, vec![(3, 3)]);
+        assert_eq!(board.cell(3, 3), Some(&Piece(Black)));
+    }
+
+    #[test]
+    fn should_not_place_when_cell_is_already_occupied() {
+        // Given
+        let mut board = Board::default();
+        let x = 3;
+        let y = 3;
+
+        // When
+        let result = board.place(x, y);
+
+        // Then
+        assert!(result.is_none());
+    }
+
+    #[test]
+    fn should_not_place_when_cell_is_empty_but_not_flippable() {
+        // Given
+        let mut board = Board::default();
+        let x = 0;
+        let y = 0;
+
+        // When
+        let result = board.place(x, y);
+
+        // Then
+        assert!(result.is_none());
+    }
+
+    #[test]
+    fn should_place_when_cell_is_empty_and_flippable() {
+        // Given
+        let mut board = Board::default();
+        let x = 3;
+        let y = 2;
+
+        // When
+        let result = board.place(x, y);
+
+        // Then
+        assert!(result.is_some());
+        let flipped_pieces = result.expect("Should have flipped pieces");
+        assert_eq!(flipped_pieces, vec![(3, 3)]);
+        assert_eq!(board.cell(3, 3), Some(&Piece(Black)));
+        assert_eq!(board.cell(3, 2), Some(&Piece(Black)));
+        assert_eq!(board.current_player, PlayerId::Player2);
     }
 }

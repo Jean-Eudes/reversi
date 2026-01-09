@@ -13,6 +13,9 @@ impl AIMoveUseCase {
 
     pub fn execute(&self, board: &mut Board) -> Option<Vec<(usize, usize)>> {
         let available_moves = board.available_positions(board.current_player());
+        if available_moves.is_empty() {
+            return None;
+        }
         let num = rand::gen_range(0, available_moves.len());
         self.move_use_case
             .execute(board, available_moves[num].0, available_moves[num].1)
@@ -32,8 +35,8 @@ mod tests {
     fn should_play_random_move() {
         // Given
         let mut array = [Empty; 64];
-        array[1] = Case::Piece(White);
-        array[2] = Case::Piece(Black);
+        array[1] = Case::Piece(Black);
+        array[2] = Case::Piece(White);
         let mut board = Board::create_board_for_test(array);
         let mut move_use_case_mock = MockMoveUseCase::new();
         move_use_case_mock

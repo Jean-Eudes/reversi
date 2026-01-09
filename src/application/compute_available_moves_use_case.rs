@@ -8,21 +8,3 @@ impl ComputeAvailableMovesUseCase {
         board.available_positions(player)
     }
 }
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn should_compute_available_moves_for_initial_board() {
-        // Given
-        let use_case = ComputeAvailableMovesUseCase {};
-        let board = Board::default();
-
-        // When
-        let result = use_case.execute(&board);
-
-        // Then
-        assert_eq!(result, vec![(3, 2), (2, 3), (5, 4), (4, 5)]);
-    }
-}
