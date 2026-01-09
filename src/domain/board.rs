@@ -73,7 +73,6 @@ impl Default for Board {
 }
 
 impl Board {
-
     #[cfg(test)]
     pub fn create_board_for_test(array: [Case; 64]) -> Board {
         Board {
@@ -118,19 +117,14 @@ impl Board {
     }
 
     pub fn place(&mut self, x: usize, y: usize) -> Option<Vec<(usize, usize)>> {
-        if self.cell(x, y) == Some(&Empty) {
-            let position_available = self.flip(x, y);
-            if position_available.is_some() {
-                self.array[x * 8 + y] = Piece(self.current_player().color());
-                self.switch_player();
+        let position_available = self.flip(x, y)?;
+        self.array[x * 8 + y] = Piece(self.current_player().color());
+        self.switch_player();
 
-                if self.available_positions(self.current_player()).is_empty() {
-                    self.switch_player();
-                }
-            }
-            return position_available;
+        if self.available_positions(self.current_player()).is_empty() {
+            self.switch_player();
         }
-        None
+        Some(position_available)
     }
 
     fn flip(&mut self, x: usize, y: usize) -> Option<Vec<(usize, usize)>> {
@@ -215,8 +209,16 @@ impl Board {
                 && self.available_positions(&self.player2).is_empty())
         {
             Some(Score {
-                player1: self.array.iter().filter(|&&c| c == Piece(self.player1.color())).count(),
-                player2: self.array.iter().filter(|&&c| c == Piece(self.player2.color())).count(),
+                player1: self
+                    .array
+                    .iter()
+                    .filter(|&&c| c == Piece(self.player1.color()))
+                    .count(),
+                player2: self
+                    .array
+                    .iter()
+                    .filter(|&&c| c == Piece(self.player2.color()))
+                    .count(),
             })
         } else {
             None
