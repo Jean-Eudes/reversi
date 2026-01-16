@@ -9,7 +9,7 @@ use application::use_case::UseCase;
 use macroquad::prelude::*;
 
 const CELL_SIZE: f32 = 60f32;
-const BORDER_SIZE: f32 = 30f32;
+const BORDER_SIZE: f32 = 40f32;
 
 use crate::domain::board::ColorPiece::{Black, White};
 use crate::domain::board::PlayerId::{Player1, Player2};
@@ -58,6 +58,8 @@ fn window_conf() -> Conf {
     Conf {
         window_title: "Reversi".to_owned(),
         sample_count: 4,
+        window_width: (BORDER_SIZE * 2f32 + CELL_SIZE * 8f32) as i32,
+        window_height: (BORDER_SIZE * 2f32 + CELL_SIZE * 8f32) as i32,
         ..Default::default()
     }
 }

@@ -1,8 +1,11 @@
 use macroquad::color::{Color, BLACK, GRAY, WHITE};
-use macroquad::prelude::{draw_circle, draw_circle_lines, draw_line};
+use macroquad::prelude::{draw_circle, draw_circle_lines, draw_line, draw_rectangle, draw_rectangle_lines};
 use crate::{BORDER_SIZE, CELL_SIZE};
 use crate::domain::board::{Board, BoardIter, Case};
 use crate::domain::board::ColorPiece::White;
+
+const WOOD_BROWN: Color = Color { r: 0.6, g: 0.4, b: 0.2, a: 1.0 };
+const WOOD_DARK: Color = Color { r: 0.4, g: 0.25, b: 0.1, a: 1.0 };
 
 pub fn draw_piece(x: f32, y: f32, radius: f32, is_white: bool) {
     // Couleur principale
@@ -45,6 +48,40 @@ pub fn draw_hint(x: f32, y: f32, radius: f32) {
 }
 
 pub fn create_board() {
+    let board_full_size = CELL_SIZE * 8.0;
+    
+    // Dessin de la bordure "bois" (uniquement l'extérieur)
+    let thickness = BORDER_SIZE;
+
+    // Haut
+    draw_rectangle(0.0, 0.0, board_full_size + thickness * 2.0, thickness, WOOD_BROWN);
+    // Bas
+    draw_rectangle(0.0, board_full_size + thickness, board_full_size + thickness * 2.0, thickness, WOOD_BROWN);
+    // Gauche
+    draw_rectangle(0.0, thickness, thickness, board_full_size, WOOD_BROWN);
+    // Droite
+    draw_rectangle(board_full_size + thickness, thickness, thickness, board_full_size, WOOD_BROWN);
+    
+    // Bordures sombres pour donner du relief (cadre extérieur)
+    draw_rectangle_lines(
+        0.0,
+        0.0,
+        board_full_size + thickness * 2.0,
+        board_full_size + thickness * 2.0,
+        5.0,
+        WOOD_DARK,
+    );
+    
+    // Ligne interne du cadre
+    draw_rectangle_lines(
+        BORDER_SIZE,
+        BORDER_SIZE,
+        board_full_size,
+        board_full_size,
+        3.0,
+        WOOD_DARK,
+    );
+
     for i in 0..=8 {
         draw_line(
             BORDER_SIZE,
