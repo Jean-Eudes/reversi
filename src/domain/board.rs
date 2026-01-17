@@ -257,7 +257,6 @@ impl Iterator for BoardIter {
 
 #[cfg(test)]
 mod tests {
-    // Note this useful idiom: importing names from outer (for mod tests) scope.
     use super::*;
 
     #[test]
@@ -322,8 +321,8 @@ mod tests {
     fn should_game_is_ending_when_no_move_is_available() {
         // Given
         let mut array = [Empty; 64];
-        array[3 * 8 + 3] = Case::Piece(Black);
-        array[3 * 8 + 4] = Case::Piece(Black);
+        array[3 * 8 + 3] = Piece(Black);
+        array[3 * 8 + 4] = Piece(Black);
         let board = Board::create_board_for_test(array);
 
         // When
