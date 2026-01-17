@@ -1,11 +1,30 @@
+# Enable a small amount of optimization in the dev profile.
+[profile.dev]
+opt-level = 1
+
+# Enable a large amount of optimization in the dev profile for dependencies.
+[profile.dev.package."*"]
+opt-level = 3
+
+
 [profile.release]
 lto = true
 opt-level = 's'
 panic = "abort"
 
+[profile.wasm-release]
+# Default to release profile values.
+inherits = "release"
+# Optimize with size in mind (also try "z", sometimes it is better).
+# Slightly slows compile times, great improvements to file size and runtime performance.
+opt-level = "s"
+# Strip all debugging information from the binary to slightly reduce file size.
+strip = "debuginfo"
+
 [workspace]
 members = [
-    "reversi-core", # Ton domaine + application
-    "reversi-macroquad", # Front-end Bevy
+    "reversi-core",
+    "reversi-macroquad",
+    "reversi-bevy",
 ]
 resolver = "2"
