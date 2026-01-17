@@ -5,20 +5,18 @@ use macroquad::{
 };
 use std::iter::repeat_n;
 
-use application::use_case::UseCase;
 use macroquad::prelude::*;
+use reversi_core::application::use_case::UseCase;
 
 const CELL_SIZE: f32 = 60f32;
 const BORDER_SIZE: f32 = 40f32;
 
-use crate::domain::board::ColorPiece::{Black, White};
-use crate::domain::board::PlayerId::{Player1, Player2};
-use crate::domain::board::{Board, ColorPiece};
 use crate::infrastructure::ui::components::{create_board, create_pieces, draw_hint, draw_piece};
 use crate::infrastructure::ui::fireworks::{spawn_firework, Particle};
+use reversi_core::domain::board::ColorPiece::{Black, White};
+use reversi_core::domain::board::PlayerId::{Player1, Player2};
+use reversi_core::domain::board::{Board, ColorPiece};
 
-mod application;
-mod domain;
 mod infrastructure;
 
 enum GameState {
@@ -87,7 +85,9 @@ async fn main() {
                 create_board();
                 create_pieces(board);
 
-                if let Some(score) = use_case.evaluate_game_end_use_case.execute(board) && get_time() - *start_time > 0.8 {
+                if let Some(score) = use_case.evaluate_game_end_use_case.execute(board)
+                    && get_time() - *start_time > 0.8
+                {
                     state = GameState::EndGame(EndGameState::RevealPieces {
                         animation_start: get_time(),
                         player1: score.player1(),

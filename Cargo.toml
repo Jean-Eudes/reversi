@@ -1,15 +1,11 @@
-[package]
-name = "reversi"
-version = "0.1.0"
-edition = "2024"
-
 [profile.release]
 lto = true
 opt-level = 's'
 panic = "abort"
 
-[dependencies]
-macroquad = "0.4.14"
-
-[dev-dependencies]
-mockall = "0.14.0"
+[workspace]
+members = [
+    "reversi-core", # Ton domaine + application
+    "reversi-macroquad", # Front-end Bevy
+]
+resolver = "2"

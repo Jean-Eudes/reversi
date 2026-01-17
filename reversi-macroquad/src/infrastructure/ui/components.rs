@@ -1,8 +1,8 @@
 use macroquad::color::{Color, BLACK, GRAY, WHITE};
 use macroquad::prelude::{draw_circle, draw_circle_lines, draw_line, draw_rectangle, draw_rectangle_lines};
 use crate::{BORDER_SIZE, CELL_SIZE};
-use crate::domain::board::{Board, BoardIter, Case};
-use crate::domain::board::ColorPiece::White;
+use reversi_core::domain::board::{Board, BoardIter, Case};
+use reversi_core::domain::board::ColorPiece::White;
 
 const WOOD_BROWN: Color = Color { r: 0.6, g: 0.4, b: 0.2, a: 1.0 };
 const WOOD_DARK: Color = Color { r: 0.4, g: 0.25, b: 0.1, a: 1.0 };

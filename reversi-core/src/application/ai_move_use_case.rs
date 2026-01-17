@@ -1,6 +1,5 @@
 use crate::application::move_use_case::MoveUseCase;
 use crate::domain::board::Board;
-use macroquad::prelude::rand;
 
 pub struct AIMoveUseCase {
     move_use_case: Box<dyn MoveUseCase>,
@@ -16,7 +15,8 @@ impl AIMoveUseCase {
         if available_moves.is_empty() {
             return None;
         }
-        let num = rand::gen_range(0, available_moves.len());
+
+        let num = fastrand::usize(0..available_moves.len());
         self.move_use_case
             .execute(board, available_moves[num].0, available_moves[num].1)
     }
