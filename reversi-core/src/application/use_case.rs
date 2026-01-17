@@ -13,8 +13,8 @@ pub struct UseCase {
     pub evaluate_game_end_use_case: EvaluateGameEndUseCase,
 }
 
-impl UseCase {
-    pub fn new() -> Self {
+impl Default for UseCase  {
+    fn default() -> Self {
         Self {
             initialize_game_use_case: StartGameUseCase {},
             compute_available_moves_use_case: ComputeAvailableMovesUseCase {},

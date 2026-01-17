@@ -64,7 +64,7 @@ fn window_conf() -> Conf {
 
 #[macroquad::main(window_conf)]
 async fn main() {
-    let use_case = UseCase::new();
+    let use_case = UseCase::default();
 
     /*    let _white_piece = generate_piece_sprite(40.0, true).await;
         let _black_piece = generate_piece_sprite(40.0, false).await;
