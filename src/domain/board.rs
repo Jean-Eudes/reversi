@@ -117,6 +117,9 @@ impl Board {
     }
 
     pub fn place(&mut self, x: usize, y: usize) -> Option<Vec<(usize, usize)>> {
+        if !(0..8).contains(&x) || !(0..8).contains(&y) {
+            return None;
+        }
         let position_available = self.flip(x, y)?;
         self.array[x * 8 + y] = Piece(self.current_player().color());
         self.switch_player();
@@ -483,5 +486,19 @@ mod tests {
         assert_eq!(board.cell(3, 3), Some(&Piece(Black)));
         assert_eq!(board.cell(3, 2), Some(&Piece(Black)));
         assert_eq!(board.current_player, PlayerId::Player2);
+    }
+
+    #[test]
+    fn should_return_none_when_place_is_out_of_bounds() {
+        // Given
+        let mut board = Board::default();
+        let x = 8;
+        let y = 0;
+
+        // When
+        let result = board.place(x, y);
+
+        // Then
+        assert!(result.is_none());
     }
 }
