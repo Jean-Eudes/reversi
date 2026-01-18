@@ -1,5 +1,5 @@
 use macroquad::{
-    color::{GREEN, WHITE},
+    color::WHITE,
     input::{is_mouse_button_pressed, mouse_position, MouseButton},
     window::{clear_background, next_frame},
 };
@@ -8,9 +8,6 @@ use std::iter::repeat_n;
 use macroquad::prelude::*;
 use reversi_core::application::use_case::UseCase;
 
-const CELL_SIZE: f32 = 60f32;
-const BORDER_SIZE: f32 = 40f32;
-
 use crate::infrastructure::ui::components::{create_board, create_pieces, draw_hint, draw_piece};
 use crate::infrastructure::ui::fireworks::{spawn_firework, Particle};
 use reversi_core::domain::board::ColorPiece::{Black, White};
@@ -18,6 +15,11 @@ use reversi_core::domain::board::PlayerId::{Player1, Player2};
 use reversi_core::domain::board::{Board, ColorPiece};
 
 mod infrastructure;
+
+const CELL_SIZE: f32 = 60f32;
+const BORDER_SIZE: f32 = 40f32;
+
+const GRID_COLOR: Color = Color::new(0.0, 0.4, 0.0, 1.); // Vert foncé Othello
 
 enum GameState {
     Start,
@@ -81,7 +83,7 @@ async fn main() {
                 state = GameState::Playing(get_time(), board);
             }
             GameState::Playing(start_time, board) => {
-                clear_background(GREEN);
+                clear_background(GRID_COLOR);
                 create_board();
                 create_pieces(board);
 
@@ -127,7 +129,7 @@ async fn main() {
                 player1,
                 player2,
             }) => {
-                clear_background(GREEN);
+                clear_background(GRID_COLOR);
                 create_board();
 
                 let done =

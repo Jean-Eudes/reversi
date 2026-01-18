@@ -49,7 +49,7 @@ pub fn draw_hint(x: f32, y: f32, radius: f32) {
 
 pub fn create_board() {
     let board_full_size = CELL_SIZE * 8.0;
-    
+
     // Dessin de la bordure "bois" (uniquement l'extérieur)
     let thickness = BORDER_SIZE;
 
@@ -61,7 +61,7 @@ pub fn create_board() {
     draw_rectangle(0.0, thickness, thickness, board_full_size, WOOD_BROWN);
     // Droite
     draw_rectangle(board_full_size + thickness, thickness, thickness, board_full_size, WOOD_BROWN);
-    
+
     // Bordures sombres pour donner du relief (cadre extérieur)
     draw_rectangle_lines(
         0.0,
@@ -71,7 +71,7 @@ pub fn create_board() {
         5.0,
         WOOD_DARK,
     );
-    
+
     // Ligne interne du cadre
     draw_rectangle_lines(
         BORDER_SIZE,
@@ -82,7 +82,7 @@ pub fn create_board() {
         WOOD_DARK,
     );
 
-    for i in 0..=8 {
+    for i in 1..8 {
         draw_line(
             BORDER_SIZE,
             BORDER_SIZE + CELL_SIZE * i as f32,
@@ -99,11 +99,12 @@ pub fn create_board() {
             3.0,
             BLACK,
         );
-        draw_circle(BORDER_SIZE + CELL_SIZE * 2f32, BORDER_SIZE + CELL_SIZE * 2f32, 5f32, BLACK);
-        draw_circle(BORDER_SIZE + CELL_SIZE * 2f32, BORDER_SIZE + CELL_SIZE * 6f32, 5f32, BLACK);
-        draw_circle(BORDER_SIZE + CELL_SIZE * 6f32, BORDER_SIZE + CELL_SIZE * 2f32, 5f32, BLACK);
-        draw_circle(BORDER_SIZE + CELL_SIZE * 6f32, BORDER_SIZE + CELL_SIZE * 6f32, 5f32, BLACK);
     }
+    draw_circle(BORDER_SIZE + CELL_SIZE * 2f32, BORDER_SIZE + CELL_SIZE * 2f32, 5f32, BLACK);
+    draw_circle(BORDER_SIZE + CELL_SIZE * 2f32, BORDER_SIZE + CELL_SIZE * 6f32, 5f32, BLACK);
+    draw_circle(BORDER_SIZE + CELL_SIZE * 6f32, BORDER_SIZE + CELL_SIZE * 2f32, 5f32, BLACK);
+    draw_circle(BORDER_SIZE + CELL_SIZE * 6f32, BORDER_SIZE + CELL_SIZE * 6f32, 5f32, BLACK);
+
 }
 
 pub fn create_pieces(plateau: &Board) {
