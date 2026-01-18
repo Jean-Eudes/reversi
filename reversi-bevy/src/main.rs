@@ -5,7 +5,6 @@ use reversi_core::domain::board::ColorPiece::Black;
 use reversi_core::domain::board::{Board, BoardIter, Case, ColorPiece};
 
 const CELL_SIZE: f32 = 60f32;
-const BORDER_SIZE: f32 = 40f32;
 
 #[derive(Resource)]
 struct BoardResource(Board);
@@ -44,8 +43,7 @@ fn main() {
         .add_systems(Startup, create_board)
         .add_message::<MoveAccepted>()
         //.add_systems(Update, refresh_board)
-        .add_systems(Update, handle_click)
-        .add_systems(Update, execute_player_move)
+        .add_systems(Update, (handle_click, execute_player_move).chain())
         .run();
 }
 
@@ -121,7 +119,6 @@ fn execute_player_move(
     mut message_reader: MessageReader<MoveAccepted>,
 ) {
     for move_accepted in message_reader.read() {
-        println!("{} {}", move_accepted.x, move_accepted.x);
         let color = game_res.0.current_player().color();
         let option = game_res.0.place(move_accepted.x, move_accepted.y);
         if let Some(flipped_case) = option {
