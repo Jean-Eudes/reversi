@@ -1,15 +1,20 @@
 use bevy::prelude::*;
 use bevy::window::{PresentMode, WindowResolution};
-use bevy::winit::WinitSettings;
 use reversi_core::application::use_case::UseCase;
 use reversi_core::domain::board::ColorPiece::Black;
-use reversi_core::domain::board::{Board, BoardIter, Case};
+use reversi_core::domain::board::{Board, BoardIter, Case, ColorPiece};
 
 const CELL_SIZE: f32 = 60f32;
 const BORDER_SIZE: f32 = 40f32;
 
 #[derive(Resource)]
 struct BoardResource(Board);
+
+#[derive(Component, Debug)]
+struct CaseUi {
+    x: usize,
+    y: usize,
+}
 
 fn main() {
     let use_case = UseCase::default();
@@ -31,7 +36,7 @@ fn main() {
             ..default()
         }))
         .add_systems(Startup, create_board)
-        .add_systems(Update, refresh_board)
+        //.add_systems(Update, refresh_board)
         .add_systems(Update, handle_click)
         .run();
 }
@@ -40,6 +45,7 @@ fn create_board(
     mut commands: Commands,
     mut meshes: ResMut<Assets<Mesh>>,
     mut materials: ResMut<Assets<ColorMaterial>>,
+    game_res: ResMut<BoardResource>,
 ) {
     let vertical_segment = meshes.add(Segment2d::new(
         Vec2::new(0f32, -CELL_SIZE * 4f32),
@@ -55,17 +61,23 @@ fn create_board(
     //let color = Color::hsl(300f32, 0.95, 0.7);
 
     for i in -4..=4 {
+        let handle = materials.add(color);
         commands.spawn((
             Mesh2d(vertical_segment.clone()),
-            MeshMaterial2d(materials.add(color)),
+            MeshMaterial2d(handle.clone()),
             Transform::from_xyz(CELL_SIZE * i as f32, 0f32, 0f32),
         ));
 
         commands.spawn((
             Mesh2d(horizontal_segment.clone()),
-            MeshMaterial2d(materials.add(color)),
+            MeshMaterial2d(handle),
             Transform::from_xyz(0f32, CELL_SIZE * i as f32, 0f32),
         ));
+    }
+    for (x, y) in BoardIter::default() {
+        if let Some(Case::Piece(color)) = game_res.0.cell(x, y) {
+            add_piece(&mut commands, &mut meshes, &mut materials, x, y, color);
+        }
     }
 }
 
@@ -73,7 +85,11 @@ fn handle_click(
     windows: Query<&Window>,
     camera_q: Query<(&Camera, &GlobalTransform)>,
     mouse_input: Res<ButtonInput<MouseButton>>,
+    mut commands: Commands,
     mut game_res: ResMut<BoardResource>,
+    mut meshes: ResMut<Assets<Mesh>>,
+    mut materials: ResMut<Assets<ColorMaterial>>,
+    query: Query<(&CaseUi, &mut MeshMaterial2d<ColorMaterial>)>,
 ) {
     let window = windows.single().unwrap();
     let (camera, camera_transform) = camera_q.single().unwrap();
@@ -92,10 +108,60 @@ fn handle_click(
             let x = ((world_position.x + CELL_SIZE * 4f32) / CELL_SIZE) as usize;
             let y = ((CELL_SIZE * 4. - world_position.y) / CELL_SIZE) as usize;
             println!("Clic sur la case : {}, {}", x, y);
+            let color = game_res.0.current_player().color();
+            let option = game_res.0.place(x, y);
+            if let Some(option) = option {
+                for content in query {
+                    if option.contains(&(content.0.x, content.0.y)) {
+                        println!("je flip {:?}", content);
+                        if let Some(mat) = materials.get_mut(&content.1.0) {
+                            mat.color = if color == ColorPiece::Black {
+                                Color::BLACK
+                            } else {
+                                Color::WHITE
+                            } ;
+                        }
+                    }
+                    println!("{:?}", content);
+                }
 
-            game_res.0.place(x, y);
+                add_piece(&mut commands, &mut meshes, &mut materials, x, y, &color);
+            }
         }
     }
+}
+
+fn add_piece(
+    commands: &mut Commands,
+    meshes: &mut ResMut<Assets<Mesh>>,
+    materials: &mut ResMut<Assets<ColorMaterial>>,
+    x: usize,
+    y: usize,
+    color: &ColorPiece,
+) {
+    let color_black = Color::linear_rgb(0., 0., 0.);
+    let color_white = Color::linear_rgb(1., 1., 1.);
+
+    let circle = Circle::new(20f32);
+
+    //commands.spawn((CaseUi { x, y },));
+
+    let handle = meshes.add(circle);
+
+    commands.spawn((
+        CaseUi { x, y },
+        Mesh2d(handle),
+        MeshMaterial2d(materials.add(if color == &Black {
+            color_black
+        } else {
+            color_white
+        })),
+        Transform::from_xyz(
+            (x as isize - 4) as f32 * CELL_SIZE + CELL_SIZE / 2.,
+            (-(y as isize) + 4) as f32 * CELL_SIZE - CELL_SIZE / 2.,
+            0f32,
+        ),
+    ));
 }
 
 fn refresh_board(
@@ -115,7 +181,7 @@ fn refresh_board(
                 Case::Empty => {}
 
                 Case::Piece(color) => {
-                    let handle = meshes.add(circle.clone());
+                    let handle = meshes.add(circle);
                     commands.spawn((
                         Mesh2d(handle),
                         MeshMaterial2d(materials.add(if color == &Black {
