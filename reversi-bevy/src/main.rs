@@ -16,11 +16,17 @@ struct CaseUi {
     y: usize,
 }
 
+#[derive(Message)]
+pub struct MoveAccepted {
+    pub x: usize,
+    pub y: usize,
+}
+
 fn main() {
     let use_case = UseCase::default();
     let board = use_case.initialize_game_use_case.execute();
 
-    App::new()
+    let app = App::new()
         //.insert_resource(WinitSettings::desktop_app())
         .insert_resource(BoardResource(board))
         .add_plugins(DefaultPlugins.set(WindowPlugin {
@@ -36,8 +42,10 @@ fn main() {
             ..default()
         }))
         .add_systems(Startup, create_board)
+        .add_message::<MoveAccepted>()
         //.add_systems(Update, refresh_board)
         .add_systems(Update, handle_click)
+        .add_systems(Update, execute_player_move)
         .run();
 }
 
@@ -85,11 +93,7 @@ fn handle_click(
     windows: Query<&Window>,
     camera_q: Query<(&Camera, &GlobalTransform)>,
     mouse_input: Res<ButtonInput<MouseButton>>,
-    mut commands: Commands,
-    mut game_res: ResMut<BoardResource>,
-    mut meshes: ResMut<Assets<Mesh>>,
-    mut materials: ResMut<Assets<ColorMaterial>>,
-    query: Query<(&CaseUi, &mut MeshMaterial2d<ColorMaterial>)>,
+    mut message_writer: MessageWriter<MoveAccepted>,
 ) {
     let window = windows.single().unwrap();
     let (camera, camera_transform) = camera_q.single().unwrap();
@@ -100,33 +104,47 @@ fn handle_click(
         .and_then(|cursor| camera.viewport_to_world_2d(camera_transform, cursor).ok())
     {
         // 'world_position' est maintenant un Vec2 dans ton repère Bevy (0,0 au centre)
-        if mouse_input.just_released(MouseButton::Left) {
-            println!(
-                "Clic sur la case : {}, {}",
-                world_position.x, world_position.y
-            );
+        if mouse_input.just_pressed(MouseButton::Left) {
             let x = ((world_position.x + CELL_SIZE * 4f32) / CELL_SIZE) as usize;
             let y = ((CELL_SIZE * 4. - world_position.y) / CELL_SIZE) as usize;
-            println!("Clic sur la case : {}, {}", x, y);
-            let color = game_res.0.current_player().color();
-            let option = game_res.0.place(x, y);
-            if let Some(option) = option {
-                for content in query {
-                    if option.contains(&(content.0.x, content.0.y)) {
-                        println!("je flip {:?}", content);
-                        if let Some(mat) = materials.get_mut(&content.1.0) {
-                            mat.color = if color == ColorPiece::Black {
-                                Color::BLACK
-                            } else {
-                                Color::WHITE
-                            } ;
-                        }
-                    }
-                    println!("{:?}", content);
-                }
+            message_writer.write(MoveAccepted { x, y });
+        }
+    }
+}
 
-                add_piece(&mut commands, &mut meshes, &mut materials, x, y, &color);
+fn execute_player_move(
+    mut commands: Commands,
+    mut game_res: ResMut<BoardResource>,
+    mut meshes: ResMut<Assets<Mesh>>,
+    mut materials: ResMut<Assets<ColorMaterial>>,
+    query: Query<(&CaseUi, &mut MeshMaterial2d<ColorMaterial>)>,
+    mut message_reader: MessageReader<MoveAccepted>,
+) {
+    for move_accepted in message_reader.read() {
+        println!("{} {}", move_accepted.x, move_accepted.x);
+        let color = game_res.0.current_player().color();
+        let option = game_res.0.place(move_accepted.x, move_accepted.y);
+        if let Some(flipped_case) = option {
+            for content in &query {
+                if flipped_case.contains(&(content.0.x, content.0.y))
+                    && let Some(mat) = materials.get_mut(&content.1.0)
+                {
+                    mat.color = if color == ColorPiece::Black {
+                        Color::BLACK
+                    } else {
+                        Color::WHITE
+                    };
+                }
             }
+
+            add_piece(
+                &mut commands,
+                &mut meshes,
+                &mut materials,
+                move_accepted.x,
+                move_accepted.y,
+                &color,
+            );
         }
     }
 }
