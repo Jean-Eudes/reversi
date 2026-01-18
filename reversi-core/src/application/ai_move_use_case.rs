@@ -5,20 +5,27 @@ pub struct AIMoveUseCase {
     move_use_case: Box<dyn MoveUseCase>,
 }
 
+pub struct SelectedMove {
+    pub position: (usize, usize),
+    pub pieces_to_flip: Vec<(usize, usize)>,
+}
+
 impl AIMoveUseCase {
     pub fn new(move_use_case: Box<dyn MoveUseCase>) -> Self {
         Self { move_use_case }
     }
 
-    pub fn execute(&self, board: &mut Board) -> Option<Vec<(usize, usize)>> {
+    pub fn execute(&self, board: &mut Board) -> Option<SelectedMove> {
         let available_moves = board.available_positions(board.current_player());
         if available_moves.is_empty() {
             return None;
         }
 
         let num = fastrand::usize(0..available_moves.len());
-        self.move_use_case
-            .execute(board, available_moves[num].0, available_moves[num].1)
+        let position_choose = available_moves[num];
+        let move_result = self.move_use_case
+            .execute(board, position_choose.0, position_choose.1);
+        move_result.map(|moves| SelectedMove { position: position_choose, pieces_to_flip: moves })
     }
 }
 

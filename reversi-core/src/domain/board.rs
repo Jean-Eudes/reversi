@@ -128,14 +128,14 @@ impl Board {
         if !(0..8).contains(&x) || !(0..8).contains(&y) {
             return None;
         }
-        let position_available = self.flip(x, y)?;
+        let flip_pieces = self.flip(x, y)?;
         self.array[x * 8 + y] = Piece(self.current_player().color());
         self.switch_player();
 
         if self.available_positions(self.current_player()).is_empty() {
             self.switch_player();
         }
-        Some(position_available)
+        Some(flip_pieces)
     }
 
     fn flip(&mut self, x: usize, y: usize) -> Option<Vec<(usize, usize)>> {
