@@ -8,12 +8,11 @@ use std::iter::repeat_n;
 use macroquad::prelude::*;
 use reversi_core::application::use_case::UseCase;
 
-use crate::infrastructure::ui::components::{create_board, create_pieces, draw_hint, draw_piece};
-use crate::infrastructure::ui::fireworks::{spawn_firework, Particle};
+use ui::components::{create_board, create_pieces, draw_hint, draw_piece};
+use ui::fireworks::{spawn_firework, Particle};
 use reversi_core::domain::board::ColorPiece::{Black, White};
 use reversi_core::domain::board::{Board, ColorPiece};
-
-mod infrastructure;
+pub mod ui;
 
 const CELL_SIZE: f32 = 60f32;
 const BORDER_SIZE: f32 = 40f32;
@@ -134,6 +133,7 @@ async fn main() {
                 let done =
                     create_pieces_for_end_game(*animation_start, reveal_delay, *player1, *player2);
                 if done {
+                    println!("Player 1: {}, Player 2: {}", player1, player2);
                     if player1 > player2 {
                         state =
                             GameState::EndGame(EndGameState::Fireworks(FireworkState::default()));

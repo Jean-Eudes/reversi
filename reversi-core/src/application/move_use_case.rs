@@ -4,7 +4,7 @@ use crate::domain::board::Board;
 use mockall::automock;
 
 #[cfg_attr(test, automock)]
-pub trait MoveUseCase {
+pub trait MoveUseCase: Send + Sync {
     fn execute(&self, board: &mut Board, x: usize, y: usize) -> Option<Vec<(usize, usize)>>;
 }
 
