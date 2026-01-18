@@ -1,4 +1,136 @@
 use bevy::prelude::*;
+use bevy::window::{PresentMode, WindowResolution};
+use bevy::winit::WinitSettings;
+use reversi_core::application::use_case::UseCase;
+use reversi_core::domain::board::ColorPiece::Black;
+use reversi_core::domain::board::{Board, BoardIter, Case};
+
+const CELL_SIZE: f32 = 60f32;
+const BORDER_SIZE: f32 = 40f32;
+
+#[derive(Resource)]
+struct BoardResource(Board);
+
 fn main() {
-    App::new().run();
+    let use_case = UseCase::default();
+    let board = use_case.initialize_game_use_case.execute();
+
+    App::new()
+        //.insert_resource(WinitSettings::desktop_app())
+        .insert_resource(BoardResource(board))
+        .add_plugins(DefaultPlugins.set(WindowPlugin {
+            primary_window: Some(Window {
+                title: "Reversi - Bevy Edition".into(),
+                resolution: WindowResolution::new(560, 560),
+                // Empêche le redimensionnement si tu veux garder ta grille propre
+                resizable: false,
+                // Optionnel : synchronisation verticale (Vsync)
+                present_mode: PresentMode::AutoVsync,
+                ..default()
+            }),
+            ..default()
+        }))
+        .add_systems(Startup, create_board)
+        .add_systems(Update, refresh_board)
+        .add_systems(Update, handle_click)
+        .run();
+}
+
+fn create_board(
+    mut commands: Commands,
+    mut meshes: ResMut<Assets<Mesh>>,
+    mut materials: ResMut<Assets<ColorMaterial>>,
+) {
+    let vertical_segment = meshes.add(Segment2d::new(
+        Vec2::new(0f32, -CELL_SIZE * 4f32),
+        Vec2::new(0f32, CELL_SIZE * 4f32),
+    ));
+    let horizontal_segment = meshes.add(Segment2d::new(
+        Vec2::new(-CELL_SIZE * 4f32, 0f32),
+        Vec2::new(CELL_SIZE * 4f32, 0f32),
+    ));
+    commands.spawn(Camera2d);
+
+    let color = Color::linear_rgb(0., 0., 0.);
+    //let color = Color::hsl(300f32, 0.95, 0.7);
+
+    for i in -4..=4 {
+        commands.spawn((
+            Mesh2d(vertical_segment.clone()),
+            MeshMaterial2d(materials.add(color)),
+            Transform::from_xyz(CELL_SIZE * i as f32, 0f32, 0f32),
+        ));
+
+        commands.spawn((
+            Mesh2d(horizontal_segment.clone()),
+            MeshMaterial2d(materials.add(color)),
+            Transform::from_xyz(0f32, CELL_SIZE * i as f32, 0f32),
+        ));
+    }
+}
+
+fn handle_click(
+    windows: Query<&Window>,
+    camera_q: Query<(&Camera, &GlobalTransform)>,
+    mouse_input: Res<ButtonInput<MouseButton>>,
+    mut game_res: ResMut<BoardResource>,
+) {
+    let window = windows.single().unwrap();
+    let (camera, camera_transform) = camera_q.single().unwrap();
+
+    // 1. Récupérer la position du curseur en pixels
+    if let Some(world_position) = window
+        .cursor_position()
+        .and_then(|cursor| camera.viewport_to_world_2d(camera_transform, cursor).ok())
+    {
+        // 'world_position' est maintenant un Vec2 dans ton repère Bevy (0,0 au centre)
+        if mouse_input.just_released(MouseButton::Left) {
+            println!(
+                "Clic sur la case : {}, {}",
+                world_position.x, world_position.y
+            );
+            let x = ((world_position.x + CELL_SIZE * 4f32) / CELL_SIZE) as usize;
+            let y = ((CELL_SIZE * 4. - world_position.y) / CELL_SIZE) as usize;
+            println!("Clic sur la case : {}, {}", x, y);
+
+            game_res.0.place(x, y);
+        }
+    }
+}
+
+fn refresh_board(
+    mut commands: Commands,
+    mut meshes: ResMut<Assets<Mesh>>,
+    mut materials: ResMut<Assets<ColorMaterial>>,
+    game_res: ResMut<BoardResource>,
+) {
+    let color_black = Color::linear_rgb(0., 0., 0.);
+    let color_white = Color::linear_rgb(1., 1., 1.);
+
+    let circle = Circle::new(20f32);
+
+    for (x, y) in BoardIter::default() {
+        if let Some(case) = game_res.0.cell(x, y) {
+            match case {
+                Case::Empty => {}
+
+                Case::Piece(color) => {
+                    let handle = meshes.add(circle.clone());
+                    commands.spawn((
+                        Mesh2d(handle),
+                        MeshMaterial2d(materials.add(if color == &Black {
+                            color_black
+                        } else {
+                            color_white
+                        })),
+                        Transform::from_xyz(
+                            (x as isize - 4) as f32 * CELL_SIZE + CELL_SIZE / 2.,
+                            (-(y as isize) + 4) as f32 * CELL_SIZE - CELL_SIZE / 2.,
+                            0f32,
+                        ),
+                    ));
+                }
+            }
+        }
+    }
 }
