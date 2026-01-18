@@ -36,7 +36,7 @@ pub enum PlayerId {
 
 pub struct Board {
     array: [Case; 64],
-    pub current_player: PlayerId,
+    current_player: PlayerId,
     player1: Player,
     player2: Player,
 }
