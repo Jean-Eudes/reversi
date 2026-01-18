@@ -11,7 +11,6 @@ use reversi_core::application::use_case::UseCase;
 use crate::infrastructure::ui::components::{create_board, create_pieces, draw_hint, draw_piece};
 use crate::infrastructure::ui::fireworks::{spawn_firework, Particle};
 use reversi_core::domain::board::ColorPiece::{Black, White};
-use reversi_core::domain::board::PlayerId::{Player1, Player2};
 use reversi_core::domain::board::{Board, ColorPiece};
 
 mod infrastructure;
@@ -100,7 +99,7 @@ async fn main() {
 
                 let positions = use_case.compute_available_moves_use_case.execute(board);
 
-                if board.current_player == Player1 {
+                if board.player1() {
                     for position in positions {
                         draw_hint(
                             BORDER_SIZE + position.0 as f32 * CELL_SIZE + CELL_SIZE / 2f32,
@@ -110,7 +109,7 @@ async fn main() {
                     }
                 }
 
-                if board.current_player == Player1 && is_mouse_button_pressed(MouseButton::Left) {
+                if board.player1() && is_mouse_button_pressed(MouseButton::Left) {
                     let (mouse_x, mouse_y) = mouse_position();
 
                     let x = ((mouse_x - BORDER_SIZE) / CELL_SIZE).floor() as usize;
@@ -118,7 +117,7 @@ async fn main() {
 
                     use_case.play_move_use_case.execute(board, x, y);
                     *start_time = get_time();
-                } else if board.current_player == Player2 && get_time() - *start_time > 0.8 {
+                } else if board.player2() && get_time() - *start_time > 0.8 {
                     use_case.play_ai_move_use_case.execute(board);
                     *start_time = get_time();
                 }

@@ -90,6 +90,14 @@ impl Board {
         }
     }
 
+    pub fn player1(&self) -> bool {
+        self.current_player == PlayerId::Player1
+    }
+
+    pub fn player2(&self) -> bool {
+        self.current_player == PlayerId::Player2
+    }
+
     pub fn available_positions(&self, player: &Player) -> Vec<(usize, usize)> {
         let mut available_positions = Vec::new();
 
