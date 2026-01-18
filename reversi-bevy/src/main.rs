@@ -162,8 +162,6 @@ fn add_piece(
 
     let circle = Circle::new(20f32);
 
-    //commands.spawn((CaseUi { x, y },));
-
     let handle = meshes.add(circle);
 
     commands.spawn((
@@ -180,41 +178,4 @@ fn add_piece(
             0f32,
         ),
     ));
-}
-
-fn refresh_board(
-    mut commands: Commands,
-    mut meshes: ResMut<Assets<Mesh>>,
-    mut materials: ResMut<Assets<ColorMaterial>>,
-    game_res: ResMut<BoardResource>,
-) {
-    let color_black = Color::linear_rgb(0., 0., 0.);
-    let color_white = Color::linear_rgb(1., 1., 1.);
-
-    let circle = Circle::new(20f32);
-
-    for (x, y) in BoardIter::default() {
-        if let Some(case) = game_res.0.cell(x, y) {
-            match case {
-                Case::Empty => {}
-
-                Case::Piece(color) => {
-                    let handle = meshes.add(circle);
-                    commands.spawn((
-                        Mesh2d(handle),
-                        MeshMaterial2d(materials.add(if color == &Black {
-                            color_black
-                        } else {
-                            color_white
-                        })),
-                        Transform::from_xyz(
-                            (x as isize - 4) as f32 * CELL_SIZE + CELL_SIZE / 2.,
-                            (-(y as isize) + 4) as f32 * CELL_SIZE - CELL_SIZE / 2.,
-                            0f32,
-                        ),
-                    ));
-                }
-            }
-        }
-    }
 }
