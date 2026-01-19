@@ -1,4 +1,5 @@
 use crate::GameState::InGame;
+use bevy::input::common_conditions::input_just_pressed;
 use bevy::prelude::*;
 use bevy::window::{PresentMode, WindowResolution};
 use bevy::winit::WinitSettings;
@@ -6,6 +7,8 @@ use reversi_core::application::ai_move_use_case::SelectedMove;
 use reversi_core::application::use_case::UseCase;
 use reversi_core::domain::board::ColorPiece::Black;
 use reversi_core::domain::board::{Board, BoardIter, Case, ColorPiece};
+use ColorPiece::White;
+use TurnState::{AiThinking, HumanTurn};
 
 const CELL_SIZE: f32 = 60f32;
 
@@ -33,6 +36,7 @@ struct MoveAccepted {
 struct MoveProcessed {
     position: (usize, usize),
     pieces_to_flip: Vec<(usize, usize)>,
+    player: ColorPiece,
 }
 
 #[derive(States, Debug, Clone, PartialEq, Eq, Hash, Default)]
@@ -54,7 +58,7 @@ fn main() {
     let use_case = UseCase::default();
     let board = use_case.initialize_game_use_case.execute();
 
-    let app = App::new()
+    App::new()
         .insert_resource(WinitSettings::desktop_app())
         .insert_resource(BoardResource(board))
         .insert_resource(UseCaseResource(use_case))
@@ -74,14 +78,15 @@ fn main() {
         .add_systems(Startup, create_board)
         .add_message::<MoveAccepted>()
         .add_message::<MoveProcessed>()
-        //.add_systems(Update, refresh_board)
         .add_systems(
             Update,
             (
-                handle_click.run_if(in_state(InGame(TurnState::HumanTurn))),
-                ai_play_system.run_if(in_state(InGame(TurnState::AiThinking))),
-                execute_player_move.run_if(in_state(InGame(TurnState::HumanTurn))),
-                apply_move,
+                handle_click
+                    .run_if(in_state(InGame(HumanTurn)).and(input_just_pressed(MouseButton::Left))),
+                ai_play_system.run_if(in_state(InGame(AiThinking))),
+                execute_player_move.run_if(on_message::<MoveAccepted>),
+                apply_move.run_if(on_message::<MoveProcessed>),
+                eng_game,
             )
                 .chain(),
         )
@@ -106,7 +111,6 @@ fn create_board(
     commands.spawn(Camera2d);
 
     let color = Color::linear_rgb(0., 0., 0.);
-    //let color = Color::hsl(300f32, 0.95, 0.7);
 
     for i in -4..=4 {
         let handle = materials.add(color);
@@ -130,7 +134,7 @@ fn create_board(
         }
     }
 
-    next_state.set(InGame(TurnState::HumanTurn));
+    next_state.set(InGame(HumanTurn));
 }
 
 fn handle_click(
@@ -167,15 +171,18 @@ fn ai_play_system(
     let move_ia = use_case.play_ai_move_use_case.execute(board);
 
     if let Some(SelectedMove {
-        position: (x, y),
+        position,
         pieces_to_flip,
     }) = move_ia
     {
         message_writer.write(MoveProcessed {
-            position: (x, y),
+            position,
             pieces_to_flip,
+            player: White,
         });
-        next_state.set(GameState::InGame(TurnState::HumanTurn));
+        if board.player1() {
+            next_state.set(InGame(HumanTurn));
+        }
     }
 }
 
@@ -196,30 +203,30 @@ fn execute_player_move(
             message_writer.write(MoveProcessed {
                 position: (move_accepted.x, move_accepted.y),
                 pieces_to_flip: flip_pieces,
+                player: Black,
             });
-            next_state.set(GameState::InGame(TurnState::AiThinking));
+            if board.player2() {
+                next_state.set(InGame(AiThinking));
+            }
         }
     }
 }
 
 fn apply_move(
     mut commands: Commands,
-    mut game_res: ResMut<BoardResource>,
     mut meshes: ResMut<Assets<Mesh>>,
     mut materials: ResMut<Assets<ColorMaterial>>,
     query: Query<(&CaseUi, &mut MeshMaterial2d<ColorMaterial>)>,
     mut message_reader: MessageReader<MoveProcessed>,
 ) {
     for move_processed in message_reader.read() {
-        let board = &mut game_res.0;
-        let color = board.current_player().opponent_color();
         for content in &query {
             if move_processed
                 .pieces_to_flip
                 .contains(&(content.0.x, content.0.y))
                 && let Some(mat) = materials.get_mut(&content.1.0)
             {
-                mat.color = if color == ColorPiece::Black {
+                mat.color = if move_processed.player == Black {
                     Color::BLACK
                 } else {
                     Color::WHITE
@@ -233,7 +240,7 @@ fn apply_move(
             &mut materials,
             move_processed.position.0,
             move_processed.position.1,
-            &color,
+            &move_processed.player,
         );
     }
 }
@@ -267,4 +274,25 @@ fn add_piece(
             0f32,
         ),
     ));
+}
+
+fn eng_game(
+    game_res: ResMut<BoardResource>,
+    query: Query<(Entity, &InitGame, &mut MeshMaterial2d<ColorMaterial>)>,
+    use_case: ResMut<UseCaseResource>,
+    mut next_state: ResMut<NextState<GameState>>,
+    mut commands: Commands,
+) {
+    if use_case
+        .0
+        .evaluate_game_end_use_case
+        .execute(&game_res.0)
+        .is_some()
+    {
+        for input in query {
+            commands.entity(input.0).despawn();
+        }
+
+        next_state.set(GameState::End);
+    }
 }
