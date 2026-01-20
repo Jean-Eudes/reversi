@@ -1,9 +1,8 @@
-use crate::GameState::InGame;
+use crate::GameState::{End, InGame, Start};
 use bevy::input::common_conditions::input_just_pressed;
 use bevy::prelude::*;
 use bevy::window::{PresentMode, WindowResolution};
 use bevy::winit::WinitSettings;
-use reversi_core::application::ai_move_use_case::SelectedMove;
 use reversi_core::application::use_case::UseCase;
 use reversi_core::domain::board::ColorPiece::Black;
 use reversi_core::domain::board::{Board, BoardIter, Case, ColorPiece};
@@ -75,24 +74,29 @@ fn main() {
             ..default()
         }))
         .init_state::<GameState>()
-        .add_systems(Startup, create_board)
         .add_message::<MoveAccepted>()
         .add_message::<MoveProcessed>()
+        .add_systems(Startup, init)
         .add_systems(
             Update,
             (
+                create_board.run_if(in_state(Start)),
+                check_end_game,
                 handle_click
                     .run_if(in_state(InGame(HumanTurn)).and(input_just_pressed(MouseButton::Left))),
                 ai_play_system.run_if(in_state(InGame(AiThinking))),
+                display_end_game.run_if(in_state(End)),
                 execute_player_move.run_if(on_message::<MoveAccepted>),
                 apply_move.run_if(on_message::<MoveProcessed>),
-                eng_game,
             )
                 .chain(),
         )
         .run();
 }
 
+fn init(mut commands: Commands) {
+    commands.spawn(Camera2d);
+}
 fn create_board(
     mut commands: Commands,
     mut meshes: ResMut<Assets<Mesh>>,
@@ -108,7 +112,6 @@ fn create_board(
         Vec2::new(-CELL_SIZE * 4f32, 0f32),
         Vec2::new(CELL_SIZE * 4f32, 0f32),
     ));
-    commands.spawn(Camera2d);
 
     let color = Color::linear_rgb(0., 0., 0.);
 
@@ -170,14 +173,10 @@ fn ai_play_system(
     let use_case = &use_case.0;
     let move_ia = use_case.play_ai_move_use_case.execute(board);
 
-    if let Some(SelectedMove {
-        position,
-        pieces_to_flip,
-    }) = move_ia
-    {
+    if let Some(selected_move) = move_ia {
         message_writer.write(MoveProcessed {
-            position,
-            pieces_to_flip,
+            position: selected_move.position(),
+            pieces_to_flip: selected_move.pieces_to_flip(),
             player: White,
         });
         if board.player1() {
@@ -276,12 +275,10 @@ fn add_piece(
     ));
 }
 
-fn eng_game(
+fn check_end_game(
     game_res: ResMut<BoardResource>,
-    query: Query<(Entity, &InitGame, &mut MeshMaterial2d<ColorMaterial>)>,
     use_case: ResMut<UseCaseResource>,
     mut next_state: ResMut<NextState<GameState>>,
-    mut commands: Commands,
 ) {
     if use_case
         .0
@@ -289,10 +286,22 @@ fn eng_game(
         .execute(&game_res.0)
         .is_some()
     {
-        for input in query {
-            commands.entity(input.0).despawn();
-        }
-
-        next_state.set(GameState::End);
+        println!("End game");
+        next_state.set(End);
     }
+}
+fn display_end_game(
+    mut game_res: ResMut<BoardResource>,
+    query: Query<Entity, Or<(With<CaseUi>, With<InitGame>)>>,
+    use_case: ResMut<UseCaseResource>,
+    mut next_state: ResMut<NextState<GameState>>,
+    mut commands: Commands,
+) {
+    println!("remove all element");
+    for input in query {
+        commands.entity(input).despawn();
+    }
+    let board = use_case.0.initialize_game_use_case.execute();
+    game_res.0 = board;
+    next_state.set(Start);
 }

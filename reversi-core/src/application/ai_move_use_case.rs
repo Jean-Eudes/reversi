@@ -6,8 +6,25 @@ pub struct AIMoveUseCase {
 }
 
 pub struct SelectedMove {
-    pub position: (usize, usize),
-    pub pieces_to_flip: Vec<(usize, usize)>,
+    position: (usize, usize),
+    pieces_to_flip: Vec<(usize, usize)>,
+}
+
+impl SelectedMove {
+    pub fn new(position: (usize, usize), pieces_to_flip: Vec<(usize, usize)>) -> Self {
+        Self {
+            position,
+            pieces_to_flip,
+        }
+    }
+
+    pub fn position(&self) -> (usize, usize) {
+        self.position
+    }
+
+    pub fn pieces_to_flip(self) -> Vec<(usize, usize)> {
+        self.pieces_to_flip
+    }
 }
 
 impl AIMoveUseCase {
@@ -23,9 +40,13 @@ impl AIMoveUseCase {
 
         let num = fastrand::usize(0..available_moves.len());
         let position_choose = available_moves[num];
-        let move_result = self.move_use_case
+        let move_result = self
+            .move_use_case
             .execute(board, position_choose.0, position_choose.1);
-        move_result.map(|moves| SelectedMove { position: position_choose, pieces_to_flip: moves })
+        move_result.map(|moves| SelectedMove {
+            position: position_choose,
+            pieces_to_flip: moves,
+        })
     }
 }
 
