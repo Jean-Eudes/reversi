@@ -76,7 +76,7 @@ fn main() {
         .init_state::<GameState>()
         .add_message::<MoveAccepted>()
         .add_message::<MoveProcessed>()
-        .add_systems(Startup, init)
+        .add_systems(Startup, init_game)
         .add_systems(
             Update,
             (
@@ -94,7 +94,7 @@ fn main() {
         .run();
 }
 
-fn init(mut commands: Commands) {
+fn init_game(mut commands: Commands) {
     commands.spawn(Camera2d);
 }
 fn create_board(
