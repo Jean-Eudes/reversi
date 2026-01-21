@@ -82,6 +82,7 @@ fn main() {
         .add_message::<MoveProcessed>()
         .add_systems(Startup, init_game)
         .add_systems(Update, tick_despawn_timers)
+        .add_systems(OnEnter(EndGame), display_end_game)
         .add_systems(
             Update,
             (
@@ -90,7 +91,6 @@ fn main() {
                 handle_click
                     .run_if(in_state(InGame(HumanTurn)).and(input_just_pressed(MouseButton::Left))),
                 ai_play_system.run_if(in_state(InGame(AiThinking))),
-                display_end_game.run_if(in_state(EndGame)),
                 execute_player_move.run_if(on_message::<MoveAccepted>),
                 apply_move.run_if(on_message::<MoveProcessed>),
             )
@@ -316,7 +316,6 @@ fn display_end_game(
     ));
     let board = use_case.0.initialize_game_use_case.execute();
     game_res.0 = board;
-    next_state.set(EndScreen);
 }
 
 fn tick_despawn_timers(
