@@ -1,4 +1,6 @@
-use crate::GameState::{End, InGame, Start};
+use crate::GameState::{EndGame, EndScreen, InGame, Start};
+use ColorPiece::White;
+use TurnState::{AiThinking, HumanTurn};
 use bevy::input::common_conditions::input_just_pressed;
 use bevy::prelude::*;
 use bevy::window::{PresentMode, WindowResolution};
@@ -6,8 +8,6 @@ use bevy::winit::WinitSettings;
 use reversi_core::application::use_case::UseCase;
 use reversi_core::domain::board::ColorPiece::Black;
 use reversi_core::domain::board::{Board, BoardIter, Case, ColorPiece};
-use ColorPiece::White;
-use TurnState::{AiThinking, HumanTurn};
 
 const CELL_SIZE: f32 = 60f32;
 
@@ -16,6 +16,9 @@ struct BoardResource(Board);
 
 #[derive(Resource)]
 struct UseCaseResource(UseCase);
+
+#[derive(Component)]
+pub struct DespawnTimer(pub Timer);
 
 #[derive(Component)]
 struct CaseUi {
@@ -50,7 +53,8 @@ enum GameState {
     #[default]
     Start,
     InGame(TurnState),
-    End,
+    EndGame,
+    EndScreen
 }
 
 fn main() {
@@ -77,6 +81,7 @@ fn main() {
         .add_message::<MoveAccepted>()
         .add_message::<MoveProcessed>()
         .add_systems(Startup, init_game)
+        .add_systems(Update, tick_despawn_timers)
         .add_systems(
             Update,
             (
@@ -85,7 +90,7 @@ fn main() {
                 handle_click
                     .run_if(in_state(InGame(HumanTurn)).and(input_just_pressed(MouseButton::Left))),
                 ai_play_system.run_if(in_state(InGame(AiThinking))),
-                display_end_game.run_if(in_state(End)),
+                display_end_game.run_if(in_state(EndGame)),
                 execute_player_move.run_if(on_message::<MoveAccepted>),
                 apply_move.run_if(on_message::<MoveProcessed>),
             )
@@ -287,7 +292,7 @@ fn check_end_game(
         .is_some()
     {
         println!("End game");
-        next_state.set(End);
+        next_state.set(EndGame);
     }
 }
 fn display_end_game(
@@ -301,7 +306,34 @@ fn display_end_game(
     for input in query {
         commands.entity(input).despawn();
     }
+
+    let text = Text2d::new("Victoire du joueur");
+
+    commands.spawn((
+        text,
+        Transform::from_xyz(0., 0., 10.),
+        DespawnTimer(Timer::from_seconds(2.0, TimerMode::Once)),
+    ));
     let board = use_case.0.initialize_game_use_case.execute();
     game_res.0 = board;
-    next_state.set(Start);
+    next_state.set(EndScreen);
+}
+
+fn tick_despawn_timers(
+    mut commands: Commands,
+    time: Res<Time>,
+    mut next_state: ResMut<NextState<GameState>>,
+    mut query: Query<(Entity, &mut DespawnTimer)>,
+) {
+    for (entity, mut timer) in &mut query {
+        // On fait avancer le timer avec le temps écoulé depuis la dernière frame
+        timer.0.tick(time.delta());
+
+        // Si le timer est terminé, on supprime l'entité
+        if timer.0.just_finished() {
+            commands.entity(entity).despawn();
+            next_state.set(Start);
+        }
+
+    }
 }
