@@ -1,6 +1,4 @@
-use crate::GameState::{EndGame, EndScreen, InGame, Start};
-use ColorPiece::White;
-use TurnState::{AiThinking, HumanTurn};
+use crate::GameState::{EndGame, InGame, Start};
 use bevy::input::common_conditions::input_just_pressed;
 use bevy::prelude::*;
 use bevy::window::{PresentMode, WindowResolution};
@@ -8,6 +6,8 @@ use bevy::winit::WinitSettings;
 use reversi_core::application::use_case::UseCase;
 use reversi_core::domain::board::ColorPiece::Black;
 use reversi_core::domain::board::{Board, BoardIter, Case, ColorPiece};
+use ColorPiece::White;
+use TurnState::{AiThinking, HumanTurn};
 
 const CELL_SIZE: f32 = 60f32;
 
@@ -54,7 +54,6 @@ enum GameState {
     Start,
     InGame(TurnState),
     EndGame,
-    EndScreen
 }
 
 fn main() {
@@ -299,7 +298,6 @@ fn display_end_game(
     mut game_res: ResMut<BoardResource>,
     query: Query<Entity, Or<(With<CaseUi>, With<InitGame>)>>,
     use_case: ResMut<UseCaseResource>,
-    mut next_state: ResMut<NextState<GameState>>,
     mut commands: Commands,
 ) {
     println!("remove all element");
