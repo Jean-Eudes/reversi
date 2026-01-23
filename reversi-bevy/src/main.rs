@@ -138,23 +138,34 @@ fn create_board(
         Vec2::new(-CELL_SIZE * 4f32, 0f32),
         Vec2::new(CELL_SIZE * 4f32, 0f32),
     ));
+    let rectangle = meshes.add(Rectangle::new(CELL_SIZE * 8f32, CELL_SIZE * 8f32));
 
-    let color = Color::linear_rgb(0., 0., 0.);
+    let black = Color::linear_rgb(0., 0., 0.);
+    let green_reversi = Color::linear_rgb(0.0, 0.4, 0.0);
+
+    let black_color_handle = materials.add(black);
+    let green_reversi_color_handle = materials.add(green_reversi);
+
+    commands.spawn((
+        InitGame,
+        Mesh2d(rectangle),
+        MeshMaterial2d(green_reversi_color_handle.clone()),
+        Transform::from_xyz(CELL_SIZE * -0f32, CELL_SIZE * 0f32, 0f32),
+    ));
 
     for i in -4..=4 {
-        let handle = materials.add(color);
         commands.spawn((
             InitGame,
             Mesh2d(vertical_segment.clone()),
-            MeshMaterial2d(handle.clone()),
-            Transform::from_xyz(CELL_SIZE * i as f32, 0f32, 0f32),
+            MeshMaterial2d(black_color_handle.clone()),
+            Transform::from_xyz(CELL_SIZE * i as f32, 0f32, 1f32),
         ));
 
         commands.spawn((
             InitGame,
             Mesh2d(horizontal_segment.clone()),
-            MeshMaterial2d(handle),
-            Transform::from_xyz(0f32, CELL_SIZE * i as f32, 0f32),
+            MeshMaterial2d(black_color_handle.clone()),
+            Transform::from_xyz(0f32, CELL_SIZE * i as f32, 1f32),
         ));
     }
     for (x, y) in BoardIter::default() {
