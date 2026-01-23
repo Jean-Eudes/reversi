@@ -245,11 +245,10 @@ fn apply_move(
 ) {
     for move_processed in message_reader.read() {
         for (case, mut sprite) in &mut query {
-            if move_processed.pieces_to_flip.contains(&(case.x, case.y)) {
-                sprite
-                    .texture_atlas
-                    .as_mut()
-                    .map(|sprite| sprite.index = if move_processed.player == Black { 1 } else { 0 });
+            if move_processed.pieces_to_flip.contains(&(case.x, case.y))
+                && let Some(sprite) = sprite.texture_atlas.as_mut()
+            {
+                sprite.index = if move_processed.player == Black { 1 } else { 0 };
             }
         }
 
