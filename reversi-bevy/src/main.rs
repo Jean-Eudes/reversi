@@ -6,6 +6,7 @@ use bevy::winit::WinitSettings;
 use reversi_core::application::use_case::UseCase;
 use reversi_core::domain::board::ColorPiece::Black;
 use reversi_core::domain::board::{Board, BoardIter, Case, ColorPiece};
+use std::isize;
 use ColorPiece::White;
 use TurnState::{AiThinking, HumanTurn};
 
@@ -16,6 +17,12 @@ struct BoardResource(Board);
 
 #[derive(Resource)]
 struct UseCaseResource(UseCase);
+
+#[derive(Resource)]
+struct GameAssets {
+    white_pion: Handle<Image>,
+    black_pion: Handle<Image>,
+}
 
 #[derive(Component)]
 pub struct DespawnTimer(pub Timer);
@@ -98,8 +105,15 @@ fn main() {
         .run();
 }
 
-fn init_game(mut commands: Commands) {
+fn init_game(mut commands: Commands, asset_server: Res<AssetServer>) {
     commands.spawn(Camera2d);
+    let black_pion = asset_server.load("pion_noir.png");
+    let white_pion = asset_server.load("pion_blanc.png");
+
+    commands.insert_resource(GameAssets {
+        black_pion,
+        white_pion,
+    });
 }
 fn create_board(
     mut commands: Commands,
@@ -107,6 +121,7 @@ fn create_board(
     mut materials: ResMut<Assets<ColorMaterial>>,
     game_res: ResMut<BoardResource>,
     mut next_state: ResMut<NextState<GameState>>,
+    assets: Res<GameAssets>,
 ) {
     let vertical_segment = meshes.add(Segment2d::new(
         Vec2::new(0f32, -CELL_SIZE * 4f32),
@@ -137,7 +152,7 @@ fn create_board(
     }
     for (x, y) in BoardIter::default() {
         if let Some(Case::Piece(color)) = game_res.0.cell(x, y) {
-            add_piece(&mut commands, &mut meshes, &mut materials, x, y, color);
+            add_piece(&mut commands, x, y, color, &assets);
         }
     }
 
@@ -217,60 +232,51 @@ fn execute_player_move(
 
 fn apply_move(
     mut commands: Commands,
-    mut meshes: ResMut<Assets<Mesh>>,
-    mut materials: ResMut<Assets<ColorMaterial>>,
-    query: Query<(&CaseUi, &mut MeshMaterial2d<ColorMaterial>)>,
+    mut query: Query<(&CaseUi, &mut Sprite)>,
     mut message_reader: MessageReader<MoveProcessed>,
+    assets: Res<GameAssets>,
 ) {
     for move_processed in message_reader.read() {
-        for content in &query {
+        for mut content in &mut query {
             if move_processed
                 .pieces_to_flip
-                .contains(&(content.0.x, content.0.y))
-                && let Some(mat) = materials.get_mut(&content.1.0)
-            {
-                mat.color = if move_processed.player == Black {
-                    Color::BLACK
+                .contains(&(content.0.x, content.0.y)) {
+                content.1.image = if move_processed.player == Black {
+                    assets.black_pion.clone()
                 } else {
-                    Color::WHITE
+                    assets.white_pion.clone()
                 };
             }
         }
 
         add_piece(
             &mut commands,
-            &mut meshes,
-            &mut materials,
             move_processed.position.0,
             move_processed.position.1,
             &move_processed.player,
+            &assets,
         );
     }
 }
 
 fn add_piece(
     commands: &mut Commands,
-    meshes: &mut ResMut<Assets<Mesh>>,
-    materials: &mut ResMut<Assets<ColorMaterial>>,
     x: usize,
     y: usize,
     color: &ColorPiece,
+    assets: &Res<GameAssets>,
 ) {
-    let color_black = Color::linear_rgb(0., 0., 0.);
-    let color_white = Color::linear_rgb(1., 1., 1.);
-
-    let circle = Circle::new(20f32);
-
-    let handle = meshes.add(circle);
-
     commands.spawn((
         CaseUi { x, y },
-        Mesh2d(handle),
-        MeshMaterial2d(materials.add(if color == &Black {
-            color_black
-        } else {
-            color_white
-        })),
+        Sprite {
+            image: if color == &White {
+                assets.white_pion.clone()
+            } else {
+                assets.black_pion.clone()
+            },
+            custom_size: Some(Vec2::new(60.0, 60.0)),
+            ..default()
+        },
         Transform::from_xyz(
             (x as isize - 4) as f32 * CELL_SIZE + CELL_SIZE / 2.,
             (-(y as isize) + 4) as f32 * CELL_SIZE - CELL_SIZE / 2.,
@@ -331,6 +337,5 @@ fn tick_despawn_timers(
             commands.entity(entity).despawn();
             next_state.set(Start);
         }
-
     }
 }
