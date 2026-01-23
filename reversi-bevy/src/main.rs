@@ -1,4 +1,6 @@
 use crate::GameState::{EndGame, InGame, Start};
+use ColorPiece::White;
+use TurnState::{AiThinking, HumanTurn};
 use bevy::input::common_conditions::input_just_pressed;
 use bevy::prelude::*;
 use bevy::window::{PresentMode, WindowResolution};
@@ -6,9 +8,6 @@ use bevy::winit::WinitSettings;
 use reversi_core::application::use_case::UseCase;
 use reversi_core::domain::board::ColorPiece::Black;
 use reversi_core::domain::board::{Board, BoardIter, Case, ColorPiece};
-use std::isize;
-use ColorPiece::White;
-use TurnState::{AiThinking, HumanTurn};
 
 const CELL_SIZE: f32 = 60f32;
 
@@ -20,8 +19,8 @@ struct UseCaseResource(UseCase);
 
 #[derive(Resource)]
 struct GameAssets {
-    white_pion: Handle<Image>,
-    black_pion: Handle<Image>,
+    pawn_atlas_layout: Handle<TextureAtlasLayout>,
+    pawn_texture: Handle<Image>,
 }
 
 #[derive(Component)]
@@ -105,14 +104,22 @@ fn main() {
         .run();
 }
 
-fn init_game(mut commands: Commands, asset_server: Res<AssetServer>) {
+fn init_game(
+    mut commands: Commands,
+    asset_server: Res<AssetServer>,
+    mut texture_atlas_layouts: ResMut<Assets<TextureAtlasLayout>>,
+) {
     commands.spawn(Camera2d);
-    let black_pion = asset_server.load("pion_noir.png");
-    let white_pion = asset_server.load("pion_blanc.png");
+    let texture = asset_server.load("pions.png");
+
+    // 2. Créer le layout : imagine que ton image fait 64x32 pixels
+    // et que chaque pion fait 32x32. C'est donc 1 ligne, 2 colonnes.
+    let layout = TextureAtlasLayout::from_grid(UVec2::splat(512), 2, 1, None, None);
+    let layout_handle = texture_atlas_layouts.add(layout);
 
     commands.insert_resource(GameAssets {
-        black_pion,
-        white_pion,
+        pawn_atlas_layout: layout_handle,
+        pawn_texture: texture,
     });
 }
 fn create_board(
@@ -237,15 +244,12 @@ fn apply_move(
     assets: Res<GameAssets>,
 ) {
     for move_processed in message_reader.read() {
-        for mut content in &mut query {
-            if move_processed
-                .pieces_to_flip
-                .contains(&(content.0.x, content.0.y)) {
-                content.1.image = if move_processed.player == Black {
-                    assets.black_pion.clone()
-                } else {
-                    assets.white_pion.clone()
-                };
+        for (case, mut sprite) in &mut query {
+            if move_processed.pieces_to_flip.contains(&(case.x, case.y)) {
+                sprite
+                    .texture_atlas
+                    .as_mut()
+                    .map(|sprite| sprite.index = if move_processed.player == Black { 1 } else { 0 });
             }
         }
 
@@ -269,18 +273,18 @@ fn add_piece(
     commands.spawn((
         CaseUi { x, y },
         Sprite {
-            image: if color == &White {
-                assets.white_pion.clone()
-            } else {
-                assets.black_pion.clone()
-            },
-            custom_size: Some(Vec2::new(60.0, 60.0)),
+            image: assets.pawn_texture.clone(),
+            texture_atlas: Some(TextureAtlas {
+                layout: assets.pawn_atlas_layout.clone(),
+                index: if color == &White { 0 } else { 1 },
+            }),
+            custom_size: Some(Vec2::new(64.0, 64.0)),
             ..default()
         },
         Transform::from_xyz(
             (x as isize - 4) as f32 * CELL_SIZE + CELL_SIZE / 2.,
             (-(y as isize) + 4) as f32 * CELL_SIZE - CELL_SIZE / 2.,
-            0f32,
+            1f32,
         ),
     ));
 }
