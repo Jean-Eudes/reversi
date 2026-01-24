@@ -1,13 +1,12 @@
 use crate::GameState::{EndGame, InGame, Start};
-use ColorPiece::White;
-use TurnState::{AiThinking, HumanTurn};
 use bevy::input::common_conditions::input_just_pressed;
 use bevy::prelude::*;
 use bevy::window::{PresentMode, WindowResolution};
-use bevy::winit::WinitSettings;
 use reversi_core::application::use_case::UseCase;
 use reversi_core::domain::board::ColorPiece::Black;
 use reversi_core::domain::board::{Board, BoardIter, Case, ColorPiece};
+use ColorPiece::White;
+use TurnState::{AiThinking, HumanTurn};
 
 const CELL_SIZE: f32 = 60f32;
 
@@ -67,7 +66,7 @@ fn main() {
     let board = use_case.initialize_game_use_case.execute();
 
     App::new()
-        .insert_resource(WinitSettings::desktop_app())
+        //.insert_resource(WinitSettings::desktop_app())
         .insert_resource(BoardResource(board))
         .insert_resource(UseCaseResource(use_case))
         .add_plugins(DefaultPlugins.set(WindowPlugin {
@@ -110,7 +109,8 @@ fn init_game(
     mut texture_atlas_layouts: ResMut<Assets<TextureAtlasLayout>>,
 ) {
     commands.spawn(Camera2d);
-    let texture = asset_server.load("pions.png");
+    let texture_pions = asset_server.load("pions.png");
+    let texture_wood = asset_server.load("woodTexture.png");
 
     // 2. Créer le layout : imagine que ton image fait 64x32 pixels
     // et que chaque pion fait 32x32. C'est donc 1 ligne, 2 colonnes.
@@ -119,8 +119,17 @@ fn init_game(
 
     commands.insert_resource(GameAssets {
         pawn_atlas_layout: layout_handle,
-        pawn_texture: texture,
+        pawn_texture: texture_pions,
     });
+
+    commands.spawn((
+        Sprite {
+            image: texture_wood,
+            //custom_size: Some(Vec2::new(64.0, 60.0)),
+            ..default()
+        },
+        Transform::from_xyz(0.0, 0.0, -1.0),
+    ));
 }
 fn create_board(
     mut commands: Commands,
