@@ -1,4 +1,4 @@
-use crate::GameState::{EndGame, InGame, Setup};
+use crate::GameState::{EndGame, InGame};
 use ColorPiece::White;
 use TurnState::{AiThinking, HumanTurn};
 use bevy::input::common_conditions::input_just_pressed;
