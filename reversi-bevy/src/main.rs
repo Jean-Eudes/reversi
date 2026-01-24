@@ -1,12 +1,13 @@
 use crate::GameState::{EndGame, InGame};
-use ColorPiece::White;
-use TurnState::{AiThinking, HumanTurn};
+use bevy::ecs::relationship::RelatedSpawnerCommands;
 use bevy::input::common_conditions::input_just_pressed;
 use bevy::prelude::*;
 use bevy::window::{PresentMode, WindowResolution};
 use reversi_core::application::use_case::UseCase;
 use reversi_core::domain::board::ColorPiece::Black;
 use reversi_core::domain::board::{Board, BoardIter, Case, ColorPiece};
+use ColorPiece::White;
+use TurnState::{AiThinking, HumanTurn};
 
 const CELL_SIZE: f32 = 60f32;
 
@@ -33,7 +34,7 @@ struct CaseUi {
 }
 
 #[derive(Component)]
-struct InitGame;
+struct BoardRoot;
 
 #[derive(Message)]
 struct MoveAccepted {
@@ -96,10 +97,7 @@ fn main() {
             Update,
             (
                 check_end_game,
-                handle_click.run_if(
-                    in_state(HumanTurn)
-                        .and(input_just_pressed(MouseButton::Left))
-                ),
+                handle_click.run_if(in_state(HumanTurn).and(input_just_pressed(MouseButton::Left))),
                 ai_play_system.run_if(in_state(AiThinking)),
                 execute_player_move.run_if(on_message::<MoveAccepted>),
                 apply_move.run_if(on_message::<MoveProcessed>),
@@ -137,6 +135,7 @@ fn create_board(
     game_res: ResMut<BoardResource>,
     assets: Res<GameAssets>,
 ) {
+    let mut parent = commands.spawn((BoardRoot, Transform::default(), Visibility::default()));
     let vertical_segment = meshes.add(Segment2d::new(
         Vec2::new(0f32, -CELL_SIZE * 4f32),
         Vec2::new(0f32, CELL_SIZE * 4f32),
@@ -146,50 +145,48 @@ fn create_board(
         Vec2::new(CELL_SIZE * 4f32, 0f32),
     ));
 
-    commands.spawn((
-        InitGame,
-        Sprite {
-            image: assets.texture_wood.clone(),
-            ..default()
-        },
-        Transform::from_xyz(0.0, 0.0, -1.0),
-    ));
-
-    let rectangle = meshes.add(Rectangle::new(CELL_SIZE * 8f32, CELL_SIZE * 8f32));
-
-    let black = Color::linear_rgb(0., 0., 0.);
-    let green_reversi = Color::linear_rgb(0.0, 0.4, 0.0);
-
-    let black_color_handle = materials.add(black);
-    let green_reversi_color_handle = materials.add(green_reversi);
-
-    commands.spawn((
-        InitGame,
-        Mesh2d(rectangle),
-        MeshMaterial2d(green_reversi_color_handle.clone()),
-        Transform::from_xyz(0f32, 0f32, 0f32),
-    ));
-
-    for i in -4..=4 {
-        commands.spawn((
-            InitGame,
-            Mesh2d(vertical_segment.clone()),
-            MeshMaterial2d(black_color_handle.clone()),
-            Transform::from_xyz(CELL_SIZE * i as f32, 0f32, 1f32),
+    parent.with_children(|parent| {
+        parent.spawn((
+            Sprite {
+                image: assets.texture_wood.clone(),
+                ..default()
+            },
+            Transform::from_xyz(0.0, 0.0, -1.0),
         ));
 
-        commands.spawn((
-            InitGame,
-            Mesh2d(horizontal_segment.clone()),
-            MeshMaterial2d(black_color_handle.clone()),
-            Transform::from_xyz(0f32, CELL_SIZE * i as f32, 1f32),
+        let rectangle = meshes.add(Rectangle::new(CELL_SIZE * 8f32, CELL_SIZE * 8f32));
+
+        let black = Color::linear_rgb(0., 0., 0.);
+        let green_reversi = Color::linear_rgb(0.0, 0.4, 0.0);
+
+        let black_color_handle = materials.add(black);
+        let green_reversi_color_handle = materials.add(green_reversi);
+
+        parent.spawn((
+            Mesh2d(rectangle),
+            MeshMaterial2d(green_reversi_color_handle.clone()),
+            Transform::from_xyz(0f32, 0f32, 0f32),
         ));
-    }
-    for (x, y) in BoardIter::default() {
-        if let Some(Case::Piece(color)) = game_res.0.cell(x, y) {
-            add_piece(&mut commands, x, y, color, &assets);
+
+        for i in -4..=4 {
+            parent.spawn((
+                Mesh2d(vertical_segment.clone()),
+                MeshMaterial2d(black_color_handle.clone()),
+                Transform::from_xyz(CELL_SIZE * i as f32, 0f32, 1f32),
+            ));
+
+            parent.spawn((
+                Mesh2d(horizontal_segment.clone()),
+                MeshMaterial2d(black_color_handle.clone()),
+                Transform::from_xyz(0f32, CELL_SIZE * i as f32, 1f32),
+            ));
         }
-    }
+        for (x, y) in BoardIter::default() {
+            if let Some(Case::Piece(color)) = game_res.0.cell(x, y) {
+                add_piece(parent, x, y, color, &assets);
+            }
+        }
+    });
 }
 
 fn handle_click(
@@ -267,8 +264,11 @@ fn apply_move(
     mut commands: Commands,
     mut query: Query<(&CaseUi, &mut Sprite)>,
     mut message_reader: MessageReader<MoveProcessed>,
+    query_board: Query<Entity, With<BoardRoot>>,
     assets: Res<GameAssets>,
 ) {
+    let board_entity = query_board.single().unwrap();
+
     for move_processed in message_reader.read() {
         for (case, mut sprite) in &mut query {
             if move_processed.pieces_to_flip.contains(&(case.x, case.y))
@@ -277,19 +277,20 @@ fn apply_move(
                 sprite.index = if move_processed.player == Black { 1 } else { 0 };
             }
         }
-
-        add_piece(
-            &mut commands,
-            move_processed.position.0,
-            move_processed.position.1,
-            &move_processed.player,
-            &assets,
-        );
+        commands.entity(board_entity).with_children(|parent| {
+            add_piece(
+                parent,
+                move_processed.position.0,
+                move_processed.position.1,
+                &move_processed.player,
+                &assets,
+            );
+        });
     }
 }
 
 fn add_piece(
-    commands: &mut Commands,
+    commands: &mut RelatedSpawnerCommands<ChildOf>,
     x: usize,
     y: usize,
     color: &ColorPiece,
@@ -330,7 +331,7 @@ fn check_end_game(
     }
 }
 
-fn remove_board(query: Query<Entity, Or<(With<CaseUi>, With<InitGame>)>>, mut commands: Commands) {
+fn remove_board(query: Query<Entity, With<BoardRoot>>, mut commands: Commands) {
     for input in query {
         commands.entity(input).despawn();
     }
@@ -341,7 +342,6 @@ fn display_end_game(
     use_case: ResMut<UseCaseResource>,
     mut commands: Commands,
 ) {
-
     let text = Text2d::new("Victoire du joueur");
 
     commands.spawn((
