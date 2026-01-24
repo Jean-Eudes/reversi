@@ -20,6 +20,7 @@ struct UseCaseResource(UseCase);
 struct GameAssets {
     pawn_atlas_layout: Handle<TextureAtlasLayout>,
     pawn_texture: Handle<Image>,
+    texture_wood: Handle<Image>,
 }
 
 #[derive(Component)]
@@ -112,24 +113,15 @@ fn init_game(
     let texture_pions = asset_server.load("pions.png");
     let texture_wood = asset_server.load("woodTexture.png");
 
-    // 2. Créer le layout : imagine que ton image fait 64x32 pixels
-    // et que chaque pion fait 32x32. C'est donc 1 ligne, 2 colonnes.
     let layout = TextureAtlasLayout::from_grid(UVec2::splat(512), 2, 1, None, None);
     let layout_handle = texture_atlas_layouts.add(layout);
 
     commands.insert_resource(GameAssets {
         pawn_atlas_layout: layout_handle,
         pawn_texture: texture_pions,
+        texture_wood,
     });
 
-    commands.spawn((
-        Sprite {
-            image: texture_wood,
-            //custom_size: Some(Vec2::new(64.0, 60.0)),
-            ..default()
-        },
-        Transform::from_xyz(0.0, 0.0, -1.0),
-    ));
 }
 fn create_board(
     mut commands: Commands,
@@ -147,6 +139,17 @@ fn create_board(
         Vec2::new(-CELL_SIZE * 4f32, 0f32),
         Vec2::new(CELL_SIZE * 4f32, 0f32),
     ));
+
+    commands.spawn((
+        InitGame,
+        Sprite {
+            image: assets.texture_wood.clone(),
+            //custom_size: Some(Vec2::new(64.0, 60.0)),
+            ..default()
+        },
+        Transform::from_xyz(0.0, 0.0, -1.0),
+    ));
+
     let rectangle = meshes.add(Rectangle::new(CELL_SIZE * 8f32, CELL_SIZE * 8f32));
 
     let black = Color::linear_rgb(0., 0., 0.);
