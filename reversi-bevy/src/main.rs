@@ -47,7 +47,8 @@ struct MoveProcessed {
     player: ColorPiece,
 }
 
-#[derive(States, Debug, Clone, PartialEq, Eq, Hash, Default)]
+#[derive(SubStates, Debug, Clone, PartialEq, Eq, Hash, Default)]
+#[source(GameState = GameState::InGame)]
 enum TurnState {
     #[default]
     HumanTurn,
@@ -83,7 +84,7 @@ fn main() {
             ..default()
         }))
         .init_state::<GameState>()
-        .init_state::<TurnState>()
+        .add_sub_state::<TurnState>()
         .add_message::<MoveAccepted>()
         .add_message::<MoveProcessed>()
         .add_systems(Startup, setup_game)
@@ -98,9 +99,8 @@ fn main() {
                 handle_click.run_if(
                     in_state(HumanTurn)
                         .and(input_just_pressed(MouseButton::Left))
-                        .and(in_state(InGame)),
                 ),
-                ai_play_system.run_if(in_state(AiThinking).and(in_state(InGame))),
+                ai_play_system.run_if(in_state(AiThinking)),
                 execute_player_move.run_if(on_message::<MoveAccepted>),
                 apply_move.run_if(on_message::<MoveProcessed>),
             )
@@ -167,7 +167,7 @@ fn create_board(
         InitGame,
         Mesh2d(rectangle),
         MeshMaterial2d(green_reversi_color_handle.clone()),
-        Transform::from_xyz(CELL_SIZE * -0f32, CELL_SIZE * 0f32, 0f32),
+        Transform::from_xyz(0f32, 0f32, 0f32),
     ));
 
     for i in -4..=4 {
