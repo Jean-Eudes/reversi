@@ -1,12 +1,12 @@
-use crate::GameState::{EndGame, InGame, Start};
+use crate::GameState::{EndGame, InGame, Setup};
+use ColorPiece::White;
+use TurnState::{AiThinking, HumanTurn};
 use bevy::input::common_conditions::input_just_pressed;
 use bevy::prelude::*;
 use bevy::window::{PresentMode, WindowResolution};
 use reversi_core::application::use_case::UseCase;
 use reversi_core::domain::board::ColorPiece::Black;
 use reversi_core::domain::board::{Board, BoardIter, Case, ColorPiece};
-use ColorPiece::White;
-use TurnState::{AiThinking, HumanTurn};
 
 const CELL_SIZE: f32 = 60f32;
 
@@ -57,8 +57,8 @@ enum TurnState {
 #[derive(States, Debug, Clone, PartialEq, Eq, Hash, Default)]
 enum GameState {
     #[default]
-    Start,
-    InGame(TurnState),
+    Setup,
+    InGame,
     EndGame,
 }
 
@@ -83,19 +83,24 @@ fn main() {
             ..default()
         }))
         .init_state::<GameState>()
+        .init_state::<TurnState>()
         .add_message::<MoveAccepted>()
         .add_message::<MoveProcessed>()
-        .add_systems(Startup, init_game)
+        .add_systems(Startup, setup_game)
         .add_systems(Update, tick_despawn_timers)
+        .add_systems(OnEnter(InGame), create_board)
+        .add_systems(OnExit(InGame), remove_board)
         .add_systems(OnEnter(EndGame), display_end_game)
         .add_systems(
             Update,
             (
-                create_board.run_if(in_state(Start)),
                 check_end_game,
-                handle_click
-                    .run_if(in_state(InGame(HumanTurn)).and(input_just_pressed(MouseButton::Left))),
-                ai_play_system.run_if(in_state(InGame(AiThinking))),
+                handle_click.run_if(
+                    in_state(HumanTurn)
+                        .and(input_just_pressed(MouseButton::Left))
+                        .and(in_state(InGame)),
+                ),
+                ai_play_system.run_if(in_state(AiThinking).and(in_state(InGame))),
                 execute_player_move.run_if(on_message::<MoveAccepted>),
                 apply_move.run_if(on_message::<MoveProcessed>),
             )
@@ -104,11 +109,13 @@ fn main() {
         .run();
 }
 
-fn init_game(
+fn setup_game(
     mut commands: Commands,
     asset_server: Res<AssetServer>,
     mut texture_atlas_layouts: ResMut<Assets<TextureAtlasLayout>>,
+    mut next_state: ResMut<NextState<GameState>>,
 ) {
+    println!("setup game");
     commands.spawn(Camera2d);
     let texture_pions = asset_server.load("pions.png");
     let texture_wood = asset_server.load("woodTexture.png");
@@ -121,14 +128,13 @@ fn init_game(
         pawn_texture: texture_pions,
         texture_wood,
     });
-
+    next_state.set(InGame);
 }
 fn create_board(
     mut commands: Commands,
     mut meshes: ResMut<Assets<Mesh>>,
     mut materials: ResMut<Assets<ColorMaterial>>,
     game_res: ResMut<BoardResource>,
-    mut next_state: ResMut<NextState<GameState>>,
     assets: Res<GameAssets>,
 ) {
     let vertical_segment = meshes.add(Segment2d::new(
@@ -144,7 +150,6 @@ fn create_board(
         InitGame,
         Sprite {
             image: assets.texture_wood.clone(),
-            //custom_size: Some(Vec2::new(64.0, 60.0)),
             ..default()
         },
         Transform::from_xyz(0.0, 0.0, -1.0),
@@ -185,8 +190,6 @@ fn create_board(
             add_piece(&mut commands, x, y, color, &assets);
         }
     }
-
-    next_state.set(InGame(HumanTurn));
 }
 
 fn handle_click(
@@ -215,7 +218,7 @@ fn handle_click(
 fn ai_play_system(
     mut game: ResMut<BoardResource>,
     use_case: ResMut<UseCaseResource>,
-    mut next_state: ResMut<NextState<GameState>>,
+    mut next_state: ResMut<NextState<TurnState>>,
     mut message_writer: MessageWriter<MoveProcessed>,
 ) {
     let board = &mut game.0;
@@ -229,7 +232,7 @@ fn ai_play_system(
             player: White,
         });
         if board.player1() {
-            next_state.set(InGame(HumanTurn));
+            next_state.set(HumanTurn);
         }
     }
 }
@@ -239,7 +242,7 @@ fn execute_player_move(
     use_case: ResMut<UseCaseResource>,
     mut message_reader: MessageReader<MoveAccepted>,
     mut message_writer: MessageWriter<MoveProcessed>,
-    mut next_state: ResMut<NextState<GameState>>,
+    mut next_state: ResMut<NextState<TurnState>>,
 ) {
     for move_accepted in message_reader.read() {
         let board = &mut game_res.0;
@@ -254,7 +257,7 @@ fn execute_player_move(
                 player: Black,
             });
             if board.player2() {
-                next_state.set(InGame(AiThinking));
+                next_state.set(AiThinking);
             }
         }
     }
@@ -326,16 +329,18 @@ fn check_end_game(
         next_state.set(EndGame);
     }
 }
-fn display_end_game(
-    mut game_res: ResMut<BoardResource>,
-    query: Query<Entity, Or<(With<CaseUi>, With<InitGame>)>>,
-    use_case: ResMut<UseCaseResource>,
-    mut commands: Commands,
-) {
-    println!("remove all element");
+
+fn remove_board(query: Query<Entity, Or<(With<CaseUi>, With<InitGame>)>>, mut commands: Commands) {
     for input in query {
         commands.entity(input).despawn();
     }
+}
+
+fn display_end_game(
+    mut game_res: ResMut<BoardResource>,
+    use_case: ResMut<UseCaseResource>,
+    mut commands: Commands,
+) {
 
     let text = Text2d::new("Victoire du joueur");
 
@@ -361,7 +366,7 @@ fn tick_despawn_timers(
         // Si le timer est terminé, on supprime l'entité
         if timer.0.just_finished() {
             commands.entity(entity).despawn();
-            next_state.set(Start);
+            next_state.set(InGame);
         }
     }
 }
