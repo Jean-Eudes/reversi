@@ -1,4 +1,7 @@
-use crate::GameState::{EndGame, InGame};
+mod menu;
+
+use crate::GameState::{EndGame, InGame, Menu};
+use crate::menu::MenuPlugin;
 use bevy::ecs::relationship::RelatedSpawnerCommands;
 use bevy::input::common_conditions::input_just_pressed;
 use bevy::prelude::*;
@@ -62,6 +65,7 @@ enum TurnState {
 enum GameState {
     #[default]
     Setup,
+    Menu,
     InGame,
     EndGame,
 }
@@ -88,6 +92,7 @@ fn main() {
         }))
         .init_state::<GameState>()
         .add_sub_state::<TurnState>()
+        .add_plugins(MenuPlugin)
         .add_systems(Startup, setup_game)
         .add_systems(Update, tick_despawn_timers)
         .add_systems(OnEnter(InGame), create_board)
@@ -193,7 +198,7 @@ fn setup_game(
         pawn_texture: texture_pions,
         texture_wood,
     });
-    next_state.set(InGame);
+    next_state.set(Menu);
 }
 
 fn create_board(
@@ -362,7 +367,7 @@ fn tick_despawn_timers(
         // Si le timer est terminé, on supprime l'entité
         if timer.0.just_finished() {
             commands.entity(entity).despawn();
-            next_state.set(InGame);
+            next_state.set(Menu);
         }
     }
 }
