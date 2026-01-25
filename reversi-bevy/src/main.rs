@@ -1,3 +1,4 @@
+use bevy::ecs::event::Trigger;
 use crate::GameState::{EndGame, InGame};
 use bevy::ecs::relationship::RelatedSpawnerCommands;
 use bevy::input::common_conditions::input_just_pressed;
@@ -127,10 +128,10 @@ fn apply_move(
     move_processed: On<MoveProcessed>,
     mut commands: Commands,
     mut query: Query<(&CaseUi, &mut Sprite)>,
-    query_board: Query<Entity, With<BoardRoot>>,
+    query_board: Single<Entity, With<BoardRoot>>,
     assets: Res<GameAssets>,
 ) {
-    let board_entity = query_board.single().unwrap();
+    let board_entity = query_board.entity();
 
     for (case, mut sprite) in &mut query {
         if move_processed.pieces_to_flip.contains(&(case.x, case.y))
@@ -181,7 +182,6 @@ fn setup_game(
     mut texture_atlas_layouts: ResMut<Assets<TextureAtlasLayout>>,
     mut next_state: ResMut<NextState<GameState>>,
 ) {
-    println!("setup game");
     commands.spawn(Camera2d);
     let texture_pions = asset_server.load("pions.png");
     let texture_wood = asset_server.load("woodTexture.png");
@@ -201,9 +201,14 @@ fn create_board(
     mut commands: Commands,
     mut meshes: ResMut<Assets<Mesh>>,
     mut materials: ResMut<Assets<ColorMaterial>>,
-    game_res: ResMut<BoardResource>,
+    mut game_res: ResMut<BoardResource>,
+    use_case: ResMut<UseCaseResource>,
     assets: Res<GameAssets>,
 ) {
+
+    let board = use_case.0.initialize_game_use_case.execute();
+    game_res.0 = board;
+
     let mut parent = commands.spawn((BoardRoot, Transform::default(), Visibility::default()));
     let vertical_segment = meshes.add(Segment2d::new(
         Vec2::new(0f32, -CELL_SIZE * 4f32),
@@ -337,8 +342,6 @@ fn remove_board(query: Query<Entity, With<BoardRoot>>, mut commands: Commands) {
 }
 
 fn display_end_game(
-    mut game_res: ResMut<BoardResource>,
-    use_case: ResMut<UseCaseResource>,
     mut commands: Commands,
 ) {
     let text = Text2d::new("Victoire du joueur");
@@ -348,8 +351,6 @@ fn display_end_game(
         Transform::from_xyz(0., 0., 10.),
         DespawnTimer(Timer::from_seconds(2.0, TimerMode::Once)),
     ));
-    let board = use_case.0.initialize_game_use_case.execute();
-    game_res.0 = board;
 }
 
 fn tick_despawn_timers(
