@@ -3,6 +3,7 @@ use bevy::ecs::relationship::RelatedSpawnerCommands;
 use bevy::input::common_conditions::input_just_pressed;
 use bevy::prelude::*;
 use bevy::window::{PresentMode, WindowResolution};
+use bevy::winit::WinitSettings;
 use reversi_core::application::use_case::UseCase;
 use reversi_core::domain::board::ColorPiece::Black;
 use reversi_core::domain::board::{Board, BoardIter, Case, ColorPiece};
@@ -36,12 +37,13 @@ struct CaseUi {
 #[derive(Component)]
 struct BoardRoot;
 
-#[derive(Message)]
+#[derive(Event)]
 struct MoveAccepted {
     x: usize,
     y: usize,
 }
-#[derive(Message)]
+
+#[derive(Event)]
 struct MoveProcessed {
     position: (usize, usize),
     pieces_to_flip: Vec<(usize, usize)>,
@@ -69,7 +71,7 @@ fn main() {
     let board = use_case.initialize_game_use_case.execute();
 
     App::new()
-        //.insert_resource(WinitSettings::desktop_app())
+        .insert_resource(WinitSettings::desktop_app())
         .insert_resource(BoardResource(board))
         .insert_resource(UseCaseResource(use_case))
         .add_plugins(DefaultPlugins.set(WindowPlugin {
@@ -86,25 +88,91 @@ fn main() {
         }))
         .init_state::<GameState>()
         .add_sub_state::<TurnState>()
-        .add_message::<MoveAccepted>()
-        .add_message::<MoveProcessed>()
         .add_systems(Startup, setup_game)
         .add_systems(Update, tick_despawn_timers)
         .add_systems(OnEnter(InGame), create_board)
         .add_systems(OnExit(InGame), remove_board)
         .add_systems(OnEnter(EndGame), display_end_game)
+        .add_observer(check_end_game_observer)
+        .add_observer(apply_move)
+        .add_observer(execute_player_move)
         .add_systems(
             Update,
             (
-                check_end_game,
                 handle_click.run_if(in_state(HumanTurn).and(input_just_pressed(MouseButton::Left))),
                 ai_play_system.run_if(in_state(AiThinking)),
-                execute_player_move.run_if(on_message::<MoveAccepted>),
-                apply_move.run_if(on_message::<MoveProcessed>),
             )
                 .chain(),
         )
         .run();
+}
+
+fn check_end_game_observer(
+    _trigger: On<MoveProcessed>, // Se déclenche après chaque coup
+    game_res: Res<BoardResource>,
+    use_case: Res<UseCaseResource>,
+    mut next_state: ResMut<NextState<GameState>>,
+) {
+    if use_case
+        .0
+        .evaluate_game_end_use_case
+        .execute(&game_res.0)
+        .is_some()
+    {
+        next_state.set(EndGame);
+    }
+}
+
+fn apply_move(
+    move_processed: On<MoveProcessed>,
+    mut commands: Commands,
+    mut query: Query<(&CaseUi, &mut Sprite)>,
+    query_board: Query<Entity, With<BoardRoot>>,
+    assets: Res<GameAssets>,
+) {
+    let board_entity = query_board.single().unwrap();
+
+    for (case, mut sprite) in &mut query {
+        if move_processed.pieces_to_flip.contains(&(case.x, case.y))
+            && let Some(sprite) = sprite.texture_atlas.as_mut()
+        {
+            sprite.index = if move_processed.player == Black { 1 } else { 0 };
+        }
+    }
+    commands.entity(board_entity).with_children(|parent| {
+        add_piece(
+            parent,
+            move_processed.position.0,
+            move_processed.position.1,
+            &move_processed.player,
+            &assets,
+        );
+    });
+}
+
+fn execute_player_move(
+    move_accepted: On<MoveAccepted>,
+    mut commands: Commands,
+    mut game_res: ResMut<BoardResource>,
+    use_case: ResMut<UseCaseResource>,
+    mut next_state: ResMut<NextState<TurnState>>,
+) {
+    let board = &mut game_res.0;
+    let option = use_case
+        .0
+        .play_move_use_case
+        .execute(board, move_accepted.x, move_accepted.y);
+    if let Some(flip_pieces) = option {
+        commands.trigger(MoveProcessed {
+            position: (move_accepted.x, move_accepted.y),
+            pieces_to_flip: flip_pieces,
+            player: Black,
+        });
+
+        if board.player2() {
+            next_state.set(AiThinking);
+        }
+    }
 }
 
 fn setup_game(
@@ -128,6 +196,7 @@ fn setup_game(
     });
     next_state.set(InGame);
 }
+
 fn create_board(
     mut commands: Commands,
     mut meshes: ResMut<Assets<Mesh>>,
@@ -190,10 +259,10 @@ fn create_board(
 }
 
 fn handle_click(
+    mut commands: Commands,
     windows: Query<&Window>,
     camera_q: Query<(&Camera, &GlobalTransform)>,
     mouse_input: Res<ButtonInput<MouseButton>>,
-    mut message_writer: MessageWriter<MoveAccepted>,
 ) {
     let window = windows.single().unwrap();
     let (camera, camera_transform) = camera_q.single().unwrap();
@@ -207,85 +276,31 @@ fn handle_click(
         if mouse_input.just_pressed(MouseButton::Left) {
             let x = ((world_position.x + CELL_SIZE * 4f32) / CELL_SIZE) as usize;
             let y = ((CELL_SIZE * 4. - world_position.y) / CELL_SIZE) as usize;
-            message_writer.write(MoveAccepted { x, y });
+            commands.trigger(MoveAccepted { x, y });
         }
     }
 }
 
 fn ai_play_system(
+    mut commands: Commands,
     mut game: ResMut<BoardResource>,
     use_case: ResMut<UseCaseResource>,
     mut next_state: ResMut<NextState<TurnState>>,
-    mut message_writer: MessageWriter<MoveProcessed>,
 ) {
     let board = &mut game.0;
     let use_case = &use_case.0;
     let move_ia = use_case.play_ai_move_use_case.execute(board);
 
     if let Some(selected_move) = move_ia {
-        message_writer.write(MoveProcessed {
+        commands.trigger(MoveProcessed {
             position: selected_move.position(),
             pieces_to_flip: selected_move.pieces_to_flip(),
             player: White,
         });
+
         if board.player1() {
             next_state.set(HumanTurn);
         }
-    }
-}
-
-fn execute_player_move(
-    mut game_res: ResMut<BoardResource>,
-    use_case: ResMut<UseCaseResource>,
-    mut message_reader: MessageReader<MoveAccepted>,
-    mut message_writer: MessageWriter<MoveProcessed>,
-    mut next_state: ResMut<NextState<TurnState>>,
-) {
-    for move_accepted in message_reader.read() {
-        let board = &mut game_res.0;
-        let option = use_case
-            .0
-            .play_move_use_case
-            .execute(board, move_accepted.x, move_accepted.y);
-        if let Some(flip_pieces) = option {
-            message_writer.write(MoveProcessed {
-                position: (move_accepted.x, move_accepted.y),
-                pieces_to_flip: flip_pieces,
-                player: Black,
-            });
-            if board.player2() {
-                next_state.set(AiThinking);
-            }
-        }
-    }
-}
-
-fn apply_move(
-    mut commands: Commands,
-    mut query: Query<(&CaseUi, &mut Sprite)>,
-    mut message_reader: MessageReader<MoveProcessed>,
-    query_board: Query<Entity, With<BoardRoot>>,
-    assets: Res<GameAssets>,
-) {
-    let board_entity = query_board.single().unwrap();
-
-    for move_processed in message_reader.read() {
-        for (case, mut sprite) in &mut query {
-            if move_processed.pieces_to_flip.contains(&(case.x, case.y))
-                && let Some(sprite) = sprite.texture_atlas.as_mut()
-            {
-                sprite.index = if move_processed.player == Black { 1 } else { 0 };
-            }
-        }
-        commands.entity(board_entity).with_children(|parent| {
-            add_piece(
-                parent,
-                move_processed.position.0,
-                move_processed.position.1,
-                &move_processed.player,
-                &assets,
-            );
-        });
     }
 }
 
@@ -313,22 +328,6 @@ fn add_piece(
             1f32,
         ),
     ));
-}
-
-fn check_end_game(
-    game_res: ResMut<BoardResource>,
-    use_case: ResMut<UseCaseResource>,
-    mut next_state: ResMut<NextState<GameState>>,
-) {
-    if use_case
-        .0
-        .evaluate_game_end_use_case
-        .execute(&game_res.0)
-        .is_some()
-    {
-        println!("End game");
-        next_state.set(EndGame);
-    }
 }
 
 fn remove_board(query: Query<Entity, With<BoardRoot>>, mut commands: Commands) {
