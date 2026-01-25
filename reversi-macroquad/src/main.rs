@@ -66,10 +66,6 @@ fn window_conf() -> Conf {
 async fn main() {
     let use_case = UseCase::default();
 
-    /*    let _white_piece = generate_piece_sprite(40.0, true).await;
-        let _black_piece = generate_piece_sprite(40.0, false).await;
-
-    */
     let reveal_delay = 0.1;
 
     let mut state = GameState::Start;

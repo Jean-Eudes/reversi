@@ -1,4 +1,3 @@
-use bevy::ecs::event::Trigger;
 use crate::GameState::{EndGame, InGame};
 use bevy::ecs::relationship::RelatedSpawnerCommands;
 use bevy::input::common_conditions::input_just_pressed;
@@ -109,7 +108,7 @@ fn main() {
 }
 
 fn check_end_game_observer(
-    _trigger: On<MoveProcessed>, // Se déclenche après chaque coup
+    _trigger: On<MoveProcessed>,
     game_res: Res<BoardResource>,
     use_case: Res<UseCaseResource>,
     mut next_state: ResMut<NextState<GameState>>,
@@ -128,10 +127,10 @@ fn apply_move(
     move_processed: On<MoveProcessed>,
     mut commands: Commands,
     mut query: Query<(&CaseUi, &mut Sprite)>,
-    query_board: Single<Entity, With<BoardRoot>>,
+    board: Single<Entity, With<BoardRoot>>,
     assets: Res<GameAssets>,
 ) {
-    let board_entity = query_board.entity();
+    let board_entity = board.entity();
 
     for (case, mut sprite) in &mut query {
         if move_processed.pieces_to_flip.contains(&(case.x, case.y))
@@ -205,7 +204,6 @@ fn create_board(
     use_case: ResMut<UseCaseResource>,
     assets: Res<GameAssets>,
 ) {
-
     let board = use_case.0.initialize_game_use_case.execute();
     game_res.0 = board;
 
@@ -341,9 +339,7 @@ fn remove_board(query: Query<Entity, With<BoardRoot>>, mut commands: Commands) {
     }
 }
 
-fn display_end_game(
-    mut commands: Commands,
-) {
+fn display_end_game(mut commands: Commands) {
     let text = Text2d::new("Victoire du joueur");
 
     commands.spawn((
