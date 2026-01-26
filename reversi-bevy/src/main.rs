@@ -103,12 +103,16 @@ fn main() {
         .add_plugins(MenuPlugin)
         .add_systems(Startup, setup_game)
         .add_systems(Update, tick_despawn_timers)
-        .add_systems(OnEnter(InGame), create_board)
+        .add_systems(
+            OnEnter(InGame),
+            (create_board_instance, create_board_ui).chain(),
+        )
         .add_systems(OnExit(InGame), remove_board)
         .add_systems(
             OnEnter(EndGame),
-            (create_board, setup_end_game_animation).chain(),
+            (create_board_ui, setup_end_game_animation).chain(),
         )
+        .add_systems(OnExit(EndGame), remove_board)
         .add_systems(Update, animate_end_game.run_if(in_state(EndGame)))
         .add_observer(check_end_game_observer)
         .add_observer(apply_move)
@@ -213,20 +217,19 @@ fn setup_game(
     next_state.set(Menu);
 }
 
-fn create_board(
+fn create_board_instance(use_case: ResMut<UseCaseResource>, mut game_res: ResMut<BoardResource>) {
+    let board = use_case.0.initialize_game_use_case.execute();
+    game_res.0 = board;
+}
+
+fn create_board_ui(
     mut commands: Commands,
     mut meshes: ResMut<Assets<Mesh>>,
     mut materials: ResMut<Assets<ColorMaterial>>,
-    mut game_res: ResMut<BoardResource>,
-    use_case: ResMut<UseCaseResource>,
+    game_res: Res<BoardResource>,
     assets: Res<GameAssets>,
     state: Res<State<GameState>>,
 ) {
-    if state.get() == &InGame {
-        let board = use_case.0.initialize_game_use_case.execute();
-        game_res.0 = board;
-    }
-
     let mut parent = commands.spawn((BoardRoot, Transform::default(), Visibility::default()));
     let vertical_segment = meshes.add(Segment2d::new(
         Vec2::new(0f32, -CELL_SIZE * 4f32),
