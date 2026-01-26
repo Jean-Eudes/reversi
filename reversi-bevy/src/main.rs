@@ -2,16 +2,15 @@ mod menu;
 
 use crate::GameState::{EndGame, InGame, Menu};
 use crate::menu::MenuPlugin;
+use ColorPiece::White;
+use TurnState::{AiThinking, HumanTurn};
 use bevy::ecs::relationship::RelatedSpawnerCommands;
 use bevy::input::common_conditions::input_just_pressed;
 use bevy::prelude::*;
 use bevy::window::{PresentMode, WindowResolution};
-use bevy::winit::WinitSettings;
 use reversi_core::application::use_case::UseCase;
 use reversi_core::domain::board::ColorPiece::Black;
 use reversi_core::domain::board::{Board, BoardIter, Case, ColorPiece};
-use ColorPiece::White;
-use TurnState::{AiThinking, HumanTurn};
 
 const CELL_SIZE: f32 = 60f32;
 
@@ -61,6 +60,15 @@ enum TurnState {
     AiThinking,
 }
 
+#[derive(Resource)]
+struct EndGameAnimation {
+    black_to_spawn: usize,
+    white_to_spawn: usize,
+    spawned_black: usize,
+    spawned_white: usize,
+    timer: Timer,
+}
+
 #[derive(States, Debug, Clone, PartialEq, Eq, Hash, Default)]
 enum GameState {
     #[default]
@@ -75,7 +83,7 @@ fn main() {
     let board = use_case.initialize_game_use_case.execute();
 
     App::new()
-        .insert_resource(WinitSettings::desktop_app())
+        // .insert_resource(WinitSettings::desktop_app())
         .insert_resource(BoardResource(board))
         .insert_resource(UseCaseResource(use_case))
         .add_plugins(DefaultPlugins.set(WindowPlugin {
@@ -97,7 +105,11 @@ fn main() {
         .add_systems(Update, tick_despawn_timers)
         .add_systems(OnEnter(InGame), create_board)
         .add_systems(OnExit(InGame), remove_board)
-        .add_systems(OnEnter(EndGame), display_end_game)
+        .add_systems(
+            OnEnter(EndGame),
+            (create_board, setup_end_game_animation).chain(),
+        )
+        .add_systems(Update, animate_end_game.run_if(in_state(EndGame)))
         .add_observer(check_end_game_observer)
         .add_observer(apply_move)
         .add_observer(execute_player_move)
@@ -208,9 +220,12 @@ fn create_board(
     mut game_res: ResMut<BoardResource>,
     use_case: ResMut<UseCaseResource>,
     assets: Res<GameAssets>,
+    state: Res<State<GameState>>,
 ) {
-    let board = use_case.0.initialize_game_use_case.execute();
-    game_res.0 = board;
+    if state.get() == &InGame {
+        let board = use_case.0.initialize_game_use_case.execute();
+        game_res.0 = board;
+    }
 
     let mut parent = commands.spawn((BoardRoot, Transform::default(), Visibility::default()));
     let vertical_segment = meshes.add(Segment2d::new(
@@ -259,7 +274,9 @@ fn create_board(
             ));
         }
         for (x, y) in BoardIter::default() {
-            if let Some(Case::Piece(color)) = game_res.0.cell(x, y) {
+            if state.get() == &InGame
+                && let Some(Case::Piece(color)) = game_res.0.cell(x, y)
+            {
                 add_piece(parent, x, y, color, &assets);
             }
         }
@@ -344,15 +361,60 @@ fn remove_board(query: Query<Entity, With<BoardRoot>>, mut commands: Commands) {
     }
 }
 
-fn display_end_game(mut commands: Commands) {
-    let text = Text2d::new("Victoire du joueur");
-
-    commands.spawn((
-        text,
-        Transform::from_xyz(0., 0., 10.),
-        DespawnTimer(Timer::from_seconds(2.0, TimerMode::Once)),
-    ));
+fn setup_end_game_animation(mut commands: Commands, board_res: Res<BoardResource>) {
+    if let Some(score) = board_res.0.end_of_game() {
+        commands.insert_resource(EndGameAnimation {
+            black_to_spawn: score.player1(),
+            white_to_spawn: score.player2(),
+            spawned_black: 0,
+            spawned_white: 0,
+            timer: Timer::from_seconds(0.1, TimerMode::Repeating),
+        });
+    }
 }
+
+fn animate_end_game(
+    mut commands: Commands,
+    time: Res<Time>,
+    mut animation: ResMut<EndGameAnimation>,
+    assets: Res<GameAssets>,
+    board_root: Query<Entity, With<BoardRoot>>,
+    mut next_state: ResMut<NextState<GameState>>,
+) {
+    animation.timer.tick(time.delta());
+
+    if animation.timer.just_finished()
+        && let Some(board_entity) = board_root.iter().next()
+    {
+        if animation.spawned_black < animation.black_to_spawn {
+            let i = animation.spawned_black;
+            let x = i % 8;
+            let y = i / 8;
+            commands.entity(board_entity).with_children(|parent| {
+                add_piece(parent, x, y, &Black, &assets);
+            });
+            animation.spawned_black += 1;
+        } else if animation.spawned_white < animation.white_to_spawn {
+            let i = animation.spawned_black + animation.spawned_white;
+            let x = i % 8;
+            let y = i / 8;
+            commands.entity(board_entity).with_children(|parent| {
+                add_piece(parent, x, y, &White, &assets);
+            });
+            animation.spawned_white += 1;
+        } else {
+            commands.spawn((
+                Text2d::new("Fin de partie"),
+                Transform::from_xyz(0., 0., 10.),
+                DespawnTimer(Timer::from_seconds(3.0, TimerMode::Once)),
+            ));
+            commands.remove_resource::<EndGameAnimation>();
+            next_state.set(Menu);
+        }
+    }
+}
+
+fn display_end_game(mut commands: Commands) {}
 
 fn tick_despawn_timers(
     mut commands: Commands,
