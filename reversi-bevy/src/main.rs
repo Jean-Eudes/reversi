@@ -3,7 +3,7 @@ mod menu;
 use crate::GameState::{EndGame, InGame, Menu};
 use crate::menu::MenuPlugin;
 use ColorPiece::White;
-use TurnState::{AiThinking, HumanTurn};
+use TurnState::{AiThinking, AiWaiting, HumanTurn};
 use bevy::ecs::relationship::RelatedSpawnerCommands;
 use bevy::input::common_conditions::input_just_pressed;
 use bevy::prelude::*;
@@ -57,8 +57,12 @@ struct MoveProcessed {
 enum TurnState {
     #[default]
     HumanTurn,
+    AiWaiting,
     AiThinking,
 }
+
+#[derive(Resource)]
+struct AiTimer(Timer);
 
 #[derive(Resource)]
 struct EndGameAnimation {
@@ -86,6 +90,7 @@ fn main() {
         // .insert_resource(WinitSettings::desktop_app())
         .insert_resource(BoardResource(board))
         .insert_resource(UseCaseResource(use_case))
+        .insert_resource(AiTimer(Timer::from_seconds(1.0, TimerMode::Once)))
         .add_plugins(DefaultPlugins.set(WindowPlugin {
             primary_window: Some(Window {
                 title: "Reversi - Bevy Edition".into(),
@@ -121,6 +126,7 @@ fn main() {
             Update,
             (
                 handle_click.run_if(in_state(HumanTurn).and(input_just_pressed(MouseButton::Left))),
+                ai_wait_system.run_if(in_state(AiWaiting)),
                 ai_play_system.run_if(in_state(AiThinking)),
             )
                 .chain(),
@@ -191,7 +197,7 @@ fn execute_player_move(
         });
 
         if board.player2() {
-            next_state.set(AiThinking);
+            next_state.set(AiWaiting);
         }
     }
 }
@@ -309,6 +315,18 @@ fn handle_click(
     }
 }
 
+fn ai_wait_system(
+    time: Res<Time>,
+    mut ai_timer: ResMut<AiTimer>,
+    mut next_state: ResMut<NextState<TurnState>>,
+) {
+    ai_timer.0.tick(time.delta());
+    if ai_timer.0.just_finished() {
+        next_state.set(AiThinking);
+        ai_timer.0.reset();
+    }
+}
+
 fn ai_play_system(
     mut commands: Commands,
     mut game: ResMut<BoardResource>,
@@ -328,6 +346,8 @@ fn ai_play_system(
 
         if board.player1() {
             next_state.set(HumanTurn);
+        } else if board.player2() {
+            next_state.set(AiWaiting);
         }
     }
 }
