@@ -1,7 +1,9 @@
 mod menu;
+mod fireworks;
 
 use crate::GameState::{EndGame, GameOverScreen, InGame, Menu};
 use crate::menu::MenuPlugin;
+use crate::fireworks::{Firework, FireworkPlugin};
 use ColorPiece::White;
 use TurnState::{AiThinking, AiWaiting, HumanTurn};
 use bevy::ecs::relationship::RelatedSpawnerCommands;
@@ -106,7 +108,7 @@ fn main() {
         }))
         .init_state::<GameState>()
         .add_sub_state::<TurnState>()
-        .add_plugins(MenuPlugin)
+        .add_plugins((MenuPlugin, FireworkPlugin))
         .add_systems(Startup, setup_game)
         .add_systems(Update, tick_despawn_timers)
         .add_systems(
@@ -125,10 +127,6 @@ fn main() {
         .add_observer(execute_player_move)
         .add_systems(OnEnter(GameOverScreen), setup_game_over_screen)
         .add_systems(OnExit(GameOverScreen), cleanup_game_over)
-        .add_systems(
-            Update,
-            (update_fireworks, update_firework_particles).run_if(in_state(GameOverScreen)),
-        )
         .add_systems(
             Update,
             (
@@ -440,12 +438,7 @@ fn animate_end_game(
 }
 
 #[derive(Component)]
-struct GameOverRoot;
-
-#[derive(Component)]
-struct Firework {
-    timer: Timer,
-}
+pub struct GameOverRoot;
 
 fn setup_game_over_screen(
     mut commands: Commands,
@@ -511,67 +504,6 @@ fn setup_game_over_screen(
         GameOverRoot,
         DespawnTimer(Timer::from_seconds(5.0, TimerMode::Once)),
     ));
-}
-
-fn update_fireworks(
-    mut commands: Commands,
-    time: Res<Time>,
-    mut query: Query<(Entity, &mut Firework)>,
-) {
-    for (entity, mut firework) in &mut query {
-        firework.timer.tick(time.delta());
-        if firework.timer.just_finished() {
-            // Créer une explosion de particules simples
-            let x = (rand::random::<f32>() - 0.5) * 400.0;
-            let y = (rand::random::<f32>() - 0.5) * 400.0;
-            let color = Color::hsv(rand::random::<f32>() * 360.0, 1.0, 1.0);
-
-            for _ in 0..20 {
-                let velocity = Vec2::new(
-                    (rand::random::<f32>() - 0.5) * 300.0,
-                    (rand::random::<f32>() - 0.5) * 300.0 + 100.0,
-                );
-                commands.spawn((
-                    Sprite {
-                        color,
-                        custom_size: Some(Vec2::splat(5.0)),
-                        ..default()
-                    },
-                    Transform::from_xyz(x, y, 20.0),
-                    GameOverRoot,
-                    FireworkParticle {
-                        velocity,
-                        timer: Timer::from_seconds(1.0, TimerMode::Once),
-                    },
-                ));
-            }
-            commands.entity(entity).despawn();
-        }
-    }
-}
-
-#[derive(Component)]
-struct FireworkParticle {
-    velocity: Vec2,
-    timer: Timer,
-}
-
-fn update_firework_particles(
-    mut commands: Commands,
-    time: Res<Time>,
-    mut query: Query<(Entity, &mut Transform, &mut FireworkParticle)>,
-) {
-    for (entity, mut transform, mut particle) in &mut query {
-        particle.timer.tick(time.delta());
-        if particle.timer.just_finished() {
-            commands.entity(entity).despawn();
-        } else {
-            let delta = time.delta_secs();
-            transform.translation.x += particle.velocity.x * delta;
-            transform.translation.y += particle.velocity.y * delta;
-            particle.velocity.y -= 100.0 * delta; // Gravité
-        }
-    }
 }
 
 fn cleanup_game_over(
