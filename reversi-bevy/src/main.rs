@@ -583,8 +583,6 @@ fn cleanup_game_over(
     }
 }
 
-fn display_end_game(mut commands: Commands) {}
-
 fn tick_despawn_timers(
     mut commands: Commands,
     time: Res<Time>,
