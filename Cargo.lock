@@ -2540,7 +2540,7 @@ dependencies = [
  "vec_map",
  "wasm-bindgen",
  "web-sys",
- "windows 0.58.0",
+ "windows 0.61.3",
 ]
 
 [[package]]
@@ -4145,6 +4145,7 @@ name = "reversi-bevy"
 version = "0.1.0"
 dependencies = [
  "bevy",
+ "rand",
  "reversi-core",
 ]
 

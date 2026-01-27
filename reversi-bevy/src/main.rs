@@ -1,6 +1,6 @@
 mod menu;
 
-use crate::GameState::{EndGame, InGame, Menu};
+use crate::GameState::{EndGame, GameOverScreen, InGame, Menu};
 use crate::menu::MenuPlugin;
 use ColorPiece::White;
 use TurnState::{AiThinking, AiWaiting, HumanTurn};
@@ -80,6 +80,7 @@ enum GameState {
     Menu,
     InGame,
     EndGame,
+    GameOverScreen,
 }
 
 fn main() {
@@ -122,6 +123,12 @@ fn main() {
         .add_observer(check_end_game_observer)
         .add_observer(apply_move)
         .add_observer(execute_player_move)
+        .add_systems(OnEnter(GameOverScreen), setup_game_over_screen)
+        .add_systems(OnExit(GameOverScreen), cleanup_game_over)
+        .add_systems(
+            Update,
+            (update_fireworks, update_firework_particles).run_if(in_state(GameOverScreen)),
+        )
         .add_systems(
             Update,
             (
@@ -426,14 +433,153 @@ fn animate_end_game(
             });
             animation.spawned_white += 1;
         } else {
-            commands.spawn((
-                Text2d::new("Fin de partie"),
-                Transform::from_xyz(0., 0., 10.),
-                DespawnTimer(Timer::from_seconds(3.0, TimerMode::Once)),
-            ));
             commands.remove_resource::<EndGameAnimation>();
-            next_state.set(Menu);
+            next_state.set(GameOverScreen);
         }
+    }
+}
+
+#[derive(Component)]
+struct GameOverRoot;
+
+#[derive(Component)]
+struct Firework {
+    timer: Timer,
+}
+
+fn setup_game_over_screen(
+    mut commands: Commands,
+    board_res: Res<BoardResource>,
+) {
+    let score = board_res.0.end_of_game().unwrap();
+    let black_score = score.player1();
+    let white_score = score.player2();
+
+    let result_text = if black_score > white_score {
+        "Victoire !"
+    } else if white_score > black_score {
+        "Défaite..."
+    } else {
+        "Match Nul !"
+    };
+
+    let score_text = format!("Noir: {} - Blanc: {}", black_score, white_score);
+
+    commands.spawn((
+        GameOverRoot,
+        Node {
+            width: Val::Percent(100.0),
+            height: Val::Percent(100.0),
+            flex_direction: FlexDirection::Column,
+            align_items: AlignItems::Center,
+            justify_content: JustifyContent::Center,
+            ..default()
+        },
+        BackgroundColor(Color::srgba(0.0, 0.0, 0.0, 0.8)),
+    )).with_children(|parent| {
+        parent.spawn((
+            Text::new(result_text),
+            TextFont {
+                font_size: 60.0,
+                ..default()
+            },
+            TextColor(Color::WHITE),
+        ));
+        parent.spawn((
+            Text::new(score_text),
+            TextFont {
+                font_size: 40.0,
+                ..default()
+            },
+            TextColor(Color::WHITE),
+        ));
+    });
+
+    if black_score > white_score {
+        // Déclencher le feu d'artifice
+        for i in 0..5 {
+             commands.spawn((
+                Firework {
+                    timer: Timer::from_seconds(0.5 + i as f32 * 0.7, TimerMode::Once),
+                },
+                GameOverRoot,
+            ));
+        }
+    }
+
+    commands.spawn((
+        GameOverRoot,
+        DespawnTimer(Timer::from_seconds(5.0, TimerMode::Once)),
+    ));
+}
+
+fn update_fireworks(
+    mut commands: Commands,
+    time: Res<Time>,
+    mut query: Query<(Entity, &mut Firework)>,
+) {
+    for (entity, mut firework) in &mut query {
+        firework.timer.tick(time.delta());
+        if firework.timer.just_finished() {
+            // Créer une explosion de particules simples
+            let x = (rand::random::<f32>() - 0.5) * 400.0;
+            let y = (rand::random::<f32>() - 0.5) * 400.0;
+            let color = Color::hsv(rand::random::<f32>() * 360.0, 1.0, 1.0);
+
+            for _ in 0..20 {
+                let velocity = Vec2::new(
+                    (rand::random::<f32>() - 0.5) * 300.0,
+                    (rand::random::<f32>() - 0.5) * 300.0 + 100.0,
+                );
+                commands.spawn((
+                    Sprite {
+                        color,
+                        custom_size: Some(Vec2::splat(5.0)),
+                        ..default()
+                    },
+                    Transform::from_xyz(x, y, 20.0),
+                    GameOverRoot,
+                    FireworkParticle {
+                        velocity,
+                        timer: Timer::from_seconds(1.0, TimerMode::Once),
+                    },
+                ));
+            }
+            commands.entity(entity).despawn();
+        }
+    }
+}
+
+#[derive(Component)]
+struct FireworkParticle {
+    velocity: Vec2,
+    timer: Timer,
+}
+
+fn update_firework_particles(
+    mut commands: Commands,
+    time: Res<Time>,
+    mut query: Query<(Entity, &mut Transform, &mut FireworkParticle)>,
+) {
+    for (entity, mut transform, mut particle) in &mut query {
+        particle.timer.tick(time.delta());
+        if particle.timer.just_finished() {
+            commands.entity(entity).despawn();
+        } else {
+            let delta = time.delta_secs();
+            transform.translation.x += particle.velocity.x * delta;
+            transform.translation.y += particle.velocity.y * delta;
+            particle.velocity.y -= 100.0 * delta; // Gravité
+        }
+    }
+}
+
+fn cleanup_game_over(
+    mut commands: Commands,
+    query: Query<Entity, With<GameOverRoot>>,
+) {
+    for entity in &query {
+        commands.entity(entity).despawn();
     }
 }
 
