@@ -27,6 +27,8 @@ fn update_fireworks(
     mut commands: Commands,
     time: Res<Time>,
     mut query: Query<(Entity, &mut Firework)>,
+    mut meshes: ResMut<Assets<Mesh>>,
+    mut materials: ResMut<Assets<ColorMaterial>>,
 ) {
     // Note: On utilise crate::GameOverRoot pour marquer les entités à nettoyer plus tard
     // Il faut s'assurer que GameOverRoot est public dans main.rs ou accessible.
@@ -39,17 +41,17 @@ fn update_fireworks(
             let y = (random::<f32>() - 0.5) * 400.0;
             let color = Color::hsv(random::<f32>() * 360.0, 1.0, 1.0);
 
+            let mesh = meshes.add(Circle::new(2.5));
+            let material = materials.add(color);
+
             for _ in 0..20 {
                 let velocity = Vec2::new(
                     (random::<f32>() - 0.5) * 300.0,
                     (random::<f32>() - 0.5) * 300.0 + 100.0,
                 );
                 commands.spawn((
-                    Sprite {
-                        color,
-                        custom_size: Some(Vec2::splat(5.0)),
-                        ..default()
-                    },
+                    Mesh2d(mesh.clone()),
+                    MeshMaterial2d(material.clone()),
                     Transform::from_xyz(x, y, 20.0),
                     crate::GameOverRoot,
                     FireworkParticle {
