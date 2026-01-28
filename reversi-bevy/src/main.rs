@@ -490,10 +490,10 @@ fn setup_game_over_screen(
 
     if black_score > white_score {
         // Déclencher le feu d'artifice
-        for i in 0..5 {
+        for i in 0..15 {
              commands.spawn((
                 Firework {
-                    timer: Timer::from_seconds(0.5 + i as f32 * 0.7, TimerMode::Once),
+                    timer: Timer::from_seconds(0.5 + i as f32 * 0.6, TimerMode::Once),
                 },
                 GameOverRoot,
             ));
@@ -502,7 +502,7 @@ fn setup_game_over_screen(
 
     commands.spawn((
         GameOverRoot,
-        DespawnTimer(Timer::from_seconds(5.0, TimerMode::Once)),
+        DespawnTimer(Timer::from_seconds(10.0, TimerMode::Once)),
     ));
 }
 
