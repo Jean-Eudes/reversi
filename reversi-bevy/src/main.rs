@@ -39,6 +39,9 @@ struct CaseUi {
 }
 
 #[derive(Component)]
+struct PlayableIndicator;
+
+#[derive(Component)]
 struct BoardRoot;
 
 #[derive(Event)]
@@ -125,6 +128,8 @@ fn main() {
         .add_observer(check_end_game_observer)
         .add_observer(apply_move)
         .add_observer(execute_player_move)
+        .add_systems(Update, show_playable_moves.run_if(in_state(HumanTurn)))
+        .add_systems(OnExit(HumanTurn), hide_playable_moves)
         .add_systems(OnEnter(GameOverScreen), setup_game_over_screen)
         .add_systems(OnExit(GameOverScreen), cleanup_game_over)
         .add_systems(
@@ -530,5 +535,60 @@ fn tick_despawn_timers(
             commands.entity(entity).despawn();
             next_state.set(Menu);
         }
+    }
+}
+
+fn show_playable_moves(
+    mut commands: Commands,
+    mut meshes: ResMut<Assets<Mesh>>,
+    mut materials: ResMut<Assets<ColorMaterial>>,
+    board_res: Res<BoardResource>,
+    board_root: Query<Entity, With<BoardRoot>>,
+    playable_indicators: Query<Entity, With<PlayableIndicator>>,
+) {
+    let board = &board_res.0;
+    let playable_moves = board.available_positions(board.current_player());
+
+    // Si on a déjà des indicateurs, on vérifie si leur nombre a changé (un coup a été joué)
+    // Pour simplifier, on les nettoie et on les recrée si le nombre est différent
+    // ou on pourrait juste compter.
+    let count = playable_indicators.iter().count();
+    if count == playable_moves.len() {
+        return;
+    }
+
+    // Nettoyer les anciens indicateurs
+    for entity in &playable_indicators {
+        commands.entity(entity).despawn();
+    }
+
+    for root in &board_root {
+        commands.entity(root).with_children(|parent| {
+            let mesh = meshes.add(Circle::new(CELL_SIZE / 4.0));
+            // Vert clair semi-transparent
+            let material = materials.add(Color::srgba(0.0, 1.0, 0.0, 0.3));
+
+            for (x, y) in playable_moves.clone() {
+                parent.spawn((
+                    PlayableIndicator,
+                    Mesh2d(mesh.clone()),
+                    MeshMaterial2d(material.clone()),
+                    Transform::from_xyz(
+                        (x as isize - 4) as f32 * CELL_SIZE + CELL_SIZE / 2.,
+                        (-(y as isize) + 4) as f32 * CELL_SIZE - CELL_SIZE / 2.,
+                        2f32,
+                    ),
+                ));
+            }
+        });
+    }
+}
+
+fn hide_playable_moves(
+    mut commands: Commands,
+    query: Query<Entity, With<PlayableIndicator>>,
+) {
+    for entity in &query {
+        commands.entity(entity).despawn();
     }
 }
