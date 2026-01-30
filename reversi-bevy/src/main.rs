@@ -544,23 +544,9 @@ fn show_playable_moves(
     mut materials: ResMut<Assets<ColorMaterial>>,
     board_res: Res<BoardResource>,
     board_root: Query<Entity, With<BoardRoot>>,
-    playable_indicators: Query<Entity, With<PlayableIndicator>>,
 ) {
     let board = &board_res.0;
     let playable_moves = board.available_positions(board.current_player());
-
-    // Si on a déjà des indicateurs, on vérifie si leur nombre a changé (un coup a été joué)
-    // Pour simplifier, on les nettoie et on les recrée si le nombre est différent
-    // ou on pourrait juste compter.
-    let count = playable_indicators.iter().count();
-    if count == playable_moves.len() {
-        return;
-    }
-
-    // Nettoyer les anciens indicateurs
-    for entity in &playable_indicators {
-        commands.entity(entity).despawn();
-    }
 
     for root in &board_root {
         commands.entity(root).with_children(|parent| {
