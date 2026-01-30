@@ -456,7 +456,7 @@ fn setup_game_over_screen(
     let result_text = if black_score > white_score {
         "Victoire !"
     } else if white_score > black_score {
-        "Défaite..."
+        "Defaite..."
     } else {
         "Match Nul !"
     };
@@ -562,7 +562,7 @@ fn show_playable_moves(
                     Transform::from_xyz(
                         (x as isize - 4) as f32 * CELL_SIZE + CELL_SIZE / 2.,
                         (-(y as isize) + 4) as f32 * CELL_SIZE - CELL_SIZE / 2.,
-                        2f32,
+                        0f32,
                     ),
                 ));
             }
