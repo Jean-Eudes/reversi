@@ -1,7 +1,7 @@
 mod menu;
 mod fireworks;
 
-use crate::GameState::{EndGame, GameOverScreen, InGame, Menu};
+use crate::GameState::{Config, EndGame, GameOverScreen, InGame, Menu};
 use crate::menu::MenuPlugin;
 use crate::fireworks::{Firework, FireworkPlugin};
 use ColorPiece::White;
@@ -78,11 +78,17 @@ struct EndGameAnimation {
     timer: Timer,
 }
 
+#[derive(Resource)]
+pub struct GameConfig {
+    pub show_playable_indicators: bool,
+}
+
 #[derive(States, Debug, Clone, PartialEq, Eq, Hash, Default)]
 enum GameState {
     #[default]
     Setup,
     Menu,
+    Config,
     InGame,
     EndGame,
     GameOverScreen,
@@ -97,6 +103,9 @@ fn main() {
         .insert_resource(BoardResource(board))
         .insert_resource(UseCaseResource(use_case))
         .insert_resource(AiTimer(Timer::from_seconds(1.0, TimerMode::Once)))
+        .insert_resource(GameConfig {
+            show_playable_indicators: true,
+        })
         .add_plugins(DefaultPlugins.set(WindowPlugin {
             primary_window: Some(Window {
                 title: "Reversi - Bevy Edition".into(),
@@ -544,7 +553,12 @@ fn show_playable_moves(
     mut materials: ResMut<Assets<ColorMaterial>>,
     board_res: Res<BoardResource>,
     board_root: Query<Entity, With<BoardRoot>>,
+    config: Res<GameConfig>,
 ) {
+    if !config.show_playable_indicators {
+        return;
+    }
+
     let board = &board_res.0;
     let playable_moves = board.available_positions(board.current_player());
 
