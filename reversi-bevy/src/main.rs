@@ -1,9 +1,9 @@
-mod menu;
 mod fireworks;
+mod menu;
 
-use crate::GameState::{Config, EndGame, GameOverScreen, InGame, Menu};
-use crate::menu::MenuPlugin;
+use crate::GameState::{EndGame, GameOverScreen, InGame, Menu};
 use crate::fireworks::{Firework, FireworkPlugin};
+use crate::menu::MenuPlugin;
 use ColorPiece::White;
 use TurnState::{AiThinking, AiWaiting, HumanTurn};
 use bevy::ecs::relationship::RelatedSpawnerCommands;
@@ -454,10 +454,7 @@ fn animate_end_game(
 #[derive(Component)]
 pub struct GameOverRoot;
 
-fn setup_game_over_screen(
-    mut commands: Commands,
-    board_res: Res<BoardResource>,
-) {
+fn setup_game_over_screen(mut commands: Commands, board_res: Res<BoardResource>) {
     let score = board_res.0.end_of_game().unwrap();
     let black_score = score.player1();
     let white_score = score.player2();
@@ -472,40 +469,42 @@ fn setup_game_over_screen(
 
     let score_text = format!("Noir: {} - Blanc: {}", black_score, white_score);
 
-    commands.spawn((
-        GameOverRoot,
-        Node {
-            width: Val::Percent(100.0),
-            height: Val::Percent(100.0),
-            flex_direction: FlexDirection::Column,
-            align_items: AlignItems::Center,
-            justify_content: JustifyContent::Center,
-            ..default()
-        },
-        BackgroundColor(Color::srgba(0.0, 0.0, 0.0, 0.8)),
-    )).with_children(|parent| {
-        parent.spawn((
-            Text::new(result_text),
-            TextFont {
-                font_size: 60.0,
+    commands
+        .spawn((
+            GameOverRoot,
+            Node {
+                width: Val::Percent(100.0),
+                height: Val::Percent(100.0),
+                flex_direction: FlexDirection::Column,
+                align_items: AlignItems::Center,
+                justify_content: JustifyContent::Center,
                 ..default()
             },
-            TextColor(Color::WHITE),
-        ));
-        parent.spawn((
-            Text::new(score_text),
-            TextFont {
-                font_size: 40.0,
-                ..default()
-            },
-            TextColor(Color::WHITE),
-        ));
-    });
+            BackgroundColor(Color::srgba(0.0, 0.0, 0.0, 0.8)),
+        ))
+        .with_children(|parent| {
+            parent.spawn((
+                Text::new(result_text),
+                TextFont {
+                    font_size: 60.0,
+                    ..default()
+                },
+                TextColor(Color::WHITE),
+            ));
+            parent.spawn((
+                Text::new(score_text),
+                TextFont {
+                    font_size: 40.0,
+                    ..default()
+                },
+                TextColor(Color::WHITE),
+            ));
+        });
 
     if black_score > white_score {
         // Déclencher le feu d'artifice
         for i in 0..15 {
-             commands.spawn((
+            commands.spawn((
                 Firework {
                     timer: Timer::from_seconds(0.5 + i as f32 * 0.6, TimerMode::Once),
                 },
@@ -520,10 +519,7 @@ fn setup_game_over_screen(
     ));
 }
 
-fn cleanup_game_over(
-    mut commands: Commands,
-    query: Query<Entity, With<GameOverRoot>>,
-) {
+fn cleanup_game_over(mut commands: Commands, query: Query<Entity, With<GameOverRoot>>) {
     for entity in &query {
         commands.entity(entity).despawn();
     }
@@ -584,10 +580,7 @@ fn show_playable_moves(
     }
 }
 
-fn hide_playable_moves(
-    mut commands: Commands,
-    query: Query<Entity, With<PlayableIndicator>>,
-) {
+fn hide_playable_moves(mut commands: Commands, query: Query<Entity, With<PlayableIndicator>>) {
     for entity in &query {
         commands.entity(entity).despawn();
     }
