@@ -320,12 +320,10 @@ fn handle_click(
     let window = windows.single().unwrap();
     let (camera, camera_transform) = camera_q.single().unwrap();
 
-    // 1. Récupérer la position du curseur en pixels
     if let Some(world_position) = window
         .cursor_position()
         .and_then(|cursor| camera.viewport_to_world_2d(camera_transform, cursor).ok())
     {
-        // 'world_position' est maintenant un Vec2 dans ton repère Bevy (0,0 au centre)
         if mouse_input.just_pressed(MouseButton::Left) {
             let x = ((world_position.x + CELL_SIZE * 4f32) / CELL_SIZE) as usize;
             let y = ((CELL_SIZE * 4. - world_position.y) / CELL_SIZE) as usize;

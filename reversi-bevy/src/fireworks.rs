@@ -78,7 +78,7 @@ fn update_firework_particles(
             let delta = time.delta_secs();
             transform.translation.x += particle.velocity.x * delta;
             transform.translation.y += particle.velocity.y * delta;
-            particle.velocity.y -= 100.0 * delta; // Gravité
+            particle.velocity.y -= 100.0 * delta; // Gravity
         }
     }
 }
