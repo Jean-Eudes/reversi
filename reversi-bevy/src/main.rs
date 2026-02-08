@@ -1,7 +1,7 @@
 mod fireworks;
 mod menu;
 
-use crate::GameState::{EndGame, GameOverScreen, InGame, Menu};
+use crate::GameState::{EndGame, GameOverScreen, InGame, Menu, Paused};
 use crate::fireworks::{Firework, FireworkPlugin};
 use crate::menu::MenuPlugin;
 use ColorPiece::White;
@@ -90,6 +90,7 @@ enum GameState {
     Menu,
     Config,
     InGame,
+    Paused,
     EndGame,
     GameOverScreen,
 }
@@ -128,6 +129,16 @@ fn main() {
             (create_board_instance, create_board_ui).chain(),
         )
         .add_systems(OnExit(InGame), remove_board)
+        .add_systems(
+            Update,
+            toggle_pause.run_if(in_state(InGame).and(input_just_pressed(KeyCode::Escape))),
+        )
+        .add_systems(OnEnter(Paused), setup_pause_menu)
+        .add_systems(OnExit(Paused), cleanup_pause_menu)
+        .add_systems(
+            Update,
+            (handle_pause_resume, handle_pause_quit).run_if(in_state(Paused)),
+        )
         .add_systems(
             OnEnter(EndGame),
             (create_board_ui, setup_end_game_animation).chain(),
@@ -452,6 +463,9 @@ fn animate_end_game(
 #[derive(Component)]
 pub struct GameOverRoot;
 
+#[derive(Component)]
+struct PauseMenuRoot;
+
 fn setup_game_over_screen(mut commands: Commands, board_res: Res<BoardResource>) {
     let score = board_res.0.end_of_game().unwrap();
     let black_score = score.player1();
@@ -581,5 +595,129 @@ fn show_playable_moves(
 fn hide_playable_moves(mut commands: Commands, query: Query<Entity, With<PlayableIndicator>>) {
     for entity in &query {
         commands.entity(entity).despawn();
+    }
+}
+
+fn toggle_pause(mut next_state: ResMut<NextState<GameState>>) {
+    next_state.set(Paused);
+}
+
+#[derive(Component)]
+struct ResumeButton;
+
+#[derive(Component)]
+struct QuitButton;
+
+fn setup_pause_menu(mut commands: Commands) {
+    commands
+        .spawn((
+            PauseMenuRoot,
+            Node {
+                width: Val::Percent(100.0),
+                height: Val::Percent(100.0),
+                flex_direction: FlexDirection::Column,
+                align_items: AlignItems::Center,
+                justify_content: JustifyContent::Center,
+                ..default()
+            },
+            BackgroundColor(Color::srgba(0.0, 0.0, 0.0, 0.6)),
+        ))
+        .with_children(|parent| {
+            parent.spawn((
+                Text::new("PAUSE"),
+                TextFont {
+                    font_size: 60.0,
+                    ..default()
+                },
+                TextColor(Color::WHITE),
+                Node {
+                    margin: UiRect::bottom(Val::Px(40.0)),
+                    ..default()
+                },
+            ));
+
+            parent
+                .spawn((
+                    ResumeButton,
+                    Button,
+                    Node {
+                        width: Val::Px(200.0),
+                        height: Val::Px(60.0),
+                        justify_content: JustifyContent::Center,
+                        align_items: AlignItems::Center,
+                        margin: UiRect::all(Val::Px(10.0)),
+                        ..default()
+                    },
+                    BackgroundColor(Color::srgb(0.2, 0.6, 0.2)),
+                ))
+                .with_children(|parent| {
+                    parent.spawn((
+                        Text::new("Redémarrer"),
+                        TextFont {
+                            font_size: 30.0,
+                            ..default()
+                        },
+                        TextColor(Color::WHITE),
+                    ));
+                });
+
+            parent
+                .spawn((
+                    QuitButton,
+                    Button,
+                    Node {
+                        width: Val::Px(200.0),
+                        height: Val::Px(60.0),
+                        justify_content: JustifyContent::Center,
+                        align_items: AlignItems::Center,
+                        margin: UiRect::all(Val::Px(10.0)),
+                        ..default()
+                    },
+                    BackgroundColor(Color::srgb(0.6, 0.2, 0.2)),
+                ))
+                .with_children(|parent| {
+                    parent.spawn((
+                        Text::new("Quitter"),
+                        TextFont {
+                            font_size: 30.0,
+                            ..default()
+                        },
+                        TextColor(Color::WHITE),
+                    ));
+                });
+        });
+}
+
+fn cleanup_pause_menu(mut commands: Commands, query: Query<Entity, With<PauseMenuRoot>>) {
+    for entity in &query {
+        commands.entity(entity).despawn();
+    }
+}
+
+fn handle_pause_resume(
+    mut interaction_query: Query<
+        &Interaction,
+        (Changed<Interaction>, With<ResumeButton>),
+    >,
+    mut next_state: ResMut<NextState<GameState>>,
+) {
+    for interaction in &mut interaction_query {
+        if *interaction == Interaction::Pressed {
+            next_state.set(InGame);
+        }
+    }
+}
+
+fn handle_pause_quit(
+    mut interaction_query: Query<
+        &Interaction,
+        (Changed<Interaction>, With<QuitButton>),
+    >,
+    mut next_state: ResMut<NextState<GameState>>,
+) {
+    for interaction in &mut interaction_query {
+        if *interaction == Interaction::Pressed {
+            next_state.set(Menu);
+        }
     }
 }
