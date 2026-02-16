@@ -10,3 +10,9 @@ https://jean-eudes.github.io/reversi/
 
 ## Version bevy :
 https://jean-eudes.github.io/reversi/bevy/
+
+## compilation with dynamic link (speed compilation)
+
+```
+cargo run --features bevy/dynamic_linking --bin reversi-bevy
+```
