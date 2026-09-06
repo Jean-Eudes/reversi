@@ -58,7 +58,7 @@ fn setup_menu(mut commands: Commands) {
             parent.spawn((
                 Text::new("REVERSI"),
                 TextFont {
-                    font_size: 64.0,
+                    font_size: FontSize::Px(64.0),
                     ..default()
                 },
                 TextColor(Color::WHITE),
@@ -96,7 +96,7 @@ fn spawn_button(
             parent.spawn((
                 Text::new(label),
                 TextFont {
-                    font_size: 32.0,
+                    font_size: FontSize::Px(32.0),
                     ..default()
                 },
                 TextColor(Color::srgb(0.9, 0.9, 0.9)),
@@ -161,7 +161,7 @@ fn setup_config_menu(mut commands: Commands, config: Res<GameConfig>) {
             parent.spawn((
                 Text::new("CONFIGURATION"),
                 TextFont {
-                    font_size: 48.0,
+                    font_size: FontSize::Px(48.0),
                     ..default()
                 },
                 TextColor(Color::WHITE),
@@ -202,7 +202,7 @@ fn spawn_config_button(
             parent.spawn((
                 Text::new(label),
                 TextFont {
-                    font_size: 32.0,
+                    font_size: FontSize::Px(32.0),
                     ..default()
                 },
                 TextColor(Color::srgb(0.9, 0.9, 0.9)),
@@ -242,7 +242,10 @@ fn config_action(
     }
 }
 
-fn cleanup_config_menu(mut commands: Commands, config_root_query: Single<Entity, With<ConfigRoot>>) {
+fn cleanup_config_menu(
+    mut commands: Commands,
+    config_root_query: Single<Entity, With<ConfigRoot>>,
+) {
     let entity = config_root_query.entity();
     commands.entity(entity).despawn();
 }
