@@ -131,7 +131,7 @@ fn main() {
         .add_systems(OnExit(InGame), remove_board)
         .add_systems(
             Update,
-            toggle_pause.run_if(in_state(InGame).and(input_just_pressed(KeyCode::Escape))),
+            toggle_pause.run_if(in_state(InGame).and_then(input_just_pressed(KeyCode::Escape))),
         )
         .add_systems(OnEnter(Paused), setup_pause_menu)
         .add_systems(OnExit(Paused), cleanup_pause_menu)
@@ -155,7 +155,8 @@ fn main() {
         .add_systems(
             Update,
             (
-                handle_click.run_if(in_state(HumanTurn).and(input_just_pressed(MouseButton::Left))),
+                handle_click
+                    .run_if(in_state(HumanTurn).and_then(input_just_pressed(MouseButton::Left))),
                 ai_wait_system.run_if(in_state(AiWaiting)),
                 ai_play_system.run_if(in_state(AiThinking)),
             )
@@ -498,7 +499,7 @@ fn setup_game_over_screen(mut commands: Commands, board_res: Res<BoardResource>)
             parent.spawn((
                 Text::new(result_text),
                 TextFont {
-                    font_size: 60.0,
+                    font_size: FontSize::Px(60.0),
                     ..default()
                 },
                 TextColor(Color::WHITE),
@@ -506,7 +507,7 @@ fn setup_game_over_screen(mut commands: Commands, board_res: Res<BoardResource>)
             parent.spawn((
                 Text::new(score_text),
                 TextFont {
-                    font_size: 40.0,
+                    font_size: FontSize::Px(40.0),
                     ..default()
                 },
                 TextColor(Color::WHITE),
@@ -626,7 +627,7 @@ fn setup_pause_menu(mut commands: Commands) {
             parent.spawn((
                 Text::new("PAUSE"),
                 TextFont {
-                    font_size: 60.0,
+                    font_size: FontSize::Px(60.0),
                     ..default()
                 },
                 TextColor(Color::WHITE),
@@ -654,7 +655,7 @@ fn setup_pause_menu(mut commands: Commands) {
                     parent.spawn((
                         Text::new("Redémarrer"),
                         TextFont {
-                            font_size: 30.0,
+                            font_size: FontSize::Px(30.0),
                             ..default()
                         },
                         TextColor(Color::WHITE),
@@ -679,7 +680,7 @@ fn setup_pause_menu(mut commands: Commands) {
                     parent.spawn((
                         Text::new("Quitter"),
                         TextFont {
-                            font_size: 30.0,
+                            font_size: FontSize::Px(30.0),
                             ..default()
                         },
                         TextColor(Color::WHITE),
@@ -695,10 +696,7 @@ fn cleanup_pause_menu(mut commands: Commands, query: Query<Entity, With<PauseMen
 }
 
 fn handle_pause_resume(
-    mut interaction_query: Query<
-        &Interaction,
-        (Changed<Interaction>, With<ResumeButton>),
-    >,
+    mut interaction_query: Query<&Interaction, (Changed<Interaction>, With<ResumeButton>)>,
     mut next_state: ResMut<NextState<GameState>>,
 ) {
     for interaction in &mut interaction_query {
@@ -709,10 +707,7 @@ fn handle_pause_resume(
 }
 
 fn handle_pause_quit(
-    mut interaction_query: Query<
-        &Interaction,
-        (Changed<Interaction>, With<QuitButton>),
-    >,
+    mut interaction_query: Query<&Interaction, (Changed<Interaction>, With<QuitButton>)>,
     mut next_state: ResMut<NextState<GameState>>,
 ) {
     for interaction in &mut interaction_query {
